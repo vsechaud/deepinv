@@ -204,6 +204,32 @@ class DataFidelity(nn.Module):
             u / gamma, y, *args, gamma=lamb / gamma, **kwargs
         )
 
+class MC(DataFidelity):
+    def __init__(self, sigma=1.0):
+        super().__init__()
+        self.norm = 1 / (sigma ** 2)
+        self.lamb1 = 0
+        self.lamb2 = 1
+    def d(self, u, y):
+        epsi = 1E-6
+        r = u-y
+        r[(y >= self.lamb2 - epsi) & (u >= self.lamb2)] = 0
+        r[(y <= self.lamb1 + epsi) & (u <= self.lamb1)] = 0
+
+        return 0.5*self.norm*torch.norm(r.view(r.shape[0], -1), p=2, dim=-1)**2
+    def grad_d(self, u, y):
+        epsi = 1E-6
+        r = u - y
+        r[(y >= self.lamb2 - epsi) & (u >= self.lamb2)] = 0
+        r[(y <= self.lamb1 + epsi) & (u <= self.lamb1)] = 0
+
+        return self.norm * r
+
+    def prox_d(self, u, y, gamma=1.0):
+        pass
+
+    def prox(self, x, y, physics, gamma=1.0):
+        pass
 
 class L2(DataFidelity):
     r"""

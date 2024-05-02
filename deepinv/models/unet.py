@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from .drunet import test_pad
+from .utils import test_pad1d
 
 
 class BFBatchNorm2d(nn.BatchNorm2d):
@@ -87,6 +88,7 @@ class UNet(nn.Module):
         bias=True,
         batch_norm=True,
         scales=4,
+        dim=2,
     ):
         super(UNet, self).__init__()
         self.name = "unet"
@@ -97,14 +99,23 @@ class UNet(nn.Module):
         self.residual = residual
         self.cat = cat
         self.compact = scales
-        self.Maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+
+        self.dim = dim
+
+        if dim == 2:
+            self.Conv = nn.Conv2d
+            self.Maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+        elif dim == 1:
+            self.Conv = nn.Conv1d
+            self.Maxpool = nn.MaxPool1d(kernel_size=2, stride=2)
 
         biasfree = batch_norm == "biasfree"
 
         def conv_block(ch_in, ch_out):
             if batch_norm:
                 return nn.Sequential(
-                    nn.Conv2d(
+                    self.Conv(
                         ch_in,
                         ch_out,
                         kernel_size=3,
@@ -119,7 +130,7 @@ class UNet(nn.Module):
                         else nn.BatchNorm2d(ch_out)
                     ),
                     nn.ReLU(inplace=True),
-                    nn.Conv2d(
+                    self.Conv(
                         ch_out, ch_out, kernel_size=3, stride=1, padding=1, bias=bias
                     ),
                     (
@@ -131,7 +142,7 @@ class UNet(nn.Module):
                 )
             else:
                 return nn.Sequential(
-                    nn.Conv2d(
+                    self.Conv(
                         ch_in,
                         ch_out,
                         kernel_size=3,
@@ -141,7 +152,7 @@ class UNet(nn.Module):
                         padding_mode="circular" if circular_padding else "zeros",
                     ),
                     nn.ReLU(inplace=True),
-                    nn.Conv2d(
+                    self.Conv(
                         ch_out, ch_out, kernel_size=3, stride=1, padding=1, bias=bias
                     ),
                     nn.ReLU(inplace=True),
@@ -151,7 +162,7 @@ class UNet(nn.Module):
             if batch_norm:
                 return nn.Sequential(
                     nn.Upsample(scale_factor=2),
-                    nn.Conv2d(
+                    self.Conv(
                         ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=bias
                     ),
                     (
@@ -164,7 +175,7 @@ class UNet(nn.Module):
             else:
                 return nn.Sequential(
                     nn.Upsample(scale_factor=2),
-                    nn.Conv2d(
+                    self.Conv(
                         ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=bias
                     ),
                     nn.ReLU(inplace=True),
@@ -198,7 +209,7 @@ class UNet(nn.Module):
         self.Up2 = up_conv(ch_in=128, ch_out=64)
         self.Up_conv2 = conv_block(ch_in=128, ch_out=64)
 
-        self.Conv_1x1 = nn.Conv2d(
+        self.Conv_1x1 = self.Conv(
             in_channels=64,
             out_channels=out_channels,
             bias=bias,
@@ -228,7 +239,10 @@ class UNet(nn.Module):
         if x.size(2) % factor == 0 and x.size(3) % factor == 0:
             return self._forward(x)
         else:
-            return test_pad(self._forward, x, modulo=factor)
+            if self.dim == 2:
+                return test_pad(self._forward, x, modulo=factor)
+            elif self.dim == 1:
+                return test_pad1d(self._forward, x, modulo=factor)
 
     def forward_standard(self, x):
         # encoding path

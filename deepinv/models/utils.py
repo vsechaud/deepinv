@@ -36,6 +36,16 @@ def test_pad(model, L, modulo=16):
     E = E[..., :h, :w]
     return E
 
+def test_pad1d(model, L, modulo=16):
+    """
+    Pads the sound to fit the model's expected sound size.
+    """
+    w = L.size()[-1]
+    padding_right = int(np.ceil(w / modulo) * modulo - w)
+    L = torch.nn.ReplicationPad1d((0, padding_right))(L)
+    E = model(L)
+    E = E[..., :w]
+    return E
 
 def test_onesplit(model, L, refield=32, sf=1):
     """
