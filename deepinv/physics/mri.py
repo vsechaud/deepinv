@@ -54,30 +54,54 @@ class MRI(DecomposablePhysics):
         self.device = device
         self.img_size = img_size
 
-        mask = mask.to(device)
+        self.mask = torch.nn.Parameter(
+            self.check_mask_shape(mask).to(device), requires_grad=False
+        ).to(device)
+
+    def check_mask_shape(self, mask):
         if len(mask.shape) == 2:
             mask = mask.unsqueeze(0).unsqueeze(0)
 
-        self.mask = torch.nn.Parameter(
-            torch.cat([mask, mask], dim=1), requires_grad=False
-        ).to(device)
+        if mask.shape[1] == 1:
+            mask = torch.cat([mask, mask], dim=1)
+
+        return mask
 
     def V_adjoint(self, x):  # (B, 2, H, W) -> (B, H, W, 2)
         y = fft2c_new(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
         return y
 
     def U(self, x):
-        return x[:, self.mask.squeeze(0) > 0]
+        if self.mask.size(0) == 1:
+            return x[:, self.mask[0, ...] > 0]
+        elif x.size(0) == self.mask.size(0):
+            return x[self.mask > 0]
+        else:
+            raise ValueError(
+                "The batch size of the mask and the input should be the same."
+            )
 
     def U_adjoint(self, x):
         _, c, h, w = self.mask.shape
         out = torch.zeros((x.shape[0], c, h, w), device=x.device)
-        out[:, self.mask.squeeze(0) > 0] = x
+
+        if self.mask.size(0) == 1:
+            out[:, self.mask[0, ...] > 0] = x
+        elif x.size(0) == self.mask.size(0):
+            out[self.mask > 0] = x
+        else:
+            raise ValueError(
+                "The batch size of the mask and the input should be the same."
+            )
         return out
 
     def V(self, x):  # (B, 2, H, W) -> (B, H, W, 2)
         x = x.permute(0, 2, 3, 1)
         return ifft2c_new(x).permute(0, 3, 1, 2)
+
+    def A(self, x, mask=None, **kwargs):
+        mask = None if mask is None else self.check_mask_shape(mask)
+        return super().A(x, mask=mask, **kwargs)
 
 
 #
