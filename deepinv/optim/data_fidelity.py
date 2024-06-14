@@ -226,10 +226,17 @@ class MC(DataFidelity):
         return self.norm * r
 
     def prox_d(self, u, y, gamma=1.0):
-        pass
+        result = (y+u)/(1+gamma)
 
+        result[(y==0) & (u<0)] = u[(y==0) & (u<0)]
+        result[(y==0) & (u>=0)] = u[(y==0) & (u>=0)]/(1+gamma)
+
+        result[(y==1) & (u>1)] = u[(y==1) & (u>1)]
+        result[(y==1) & (u<=1)] = (u[(y==1) & (u<=1)] + gamma)/(1+gamma)
+
+        return result
     def prox(self, x, y, physics, gamma=1.0):
-        pass
+        return self.prox_d(x, y, gamma=gamma)
 
 class L2(DataFidelity):
     r"""

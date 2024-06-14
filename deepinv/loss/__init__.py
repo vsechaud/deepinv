@@ -1,4 +1,4 @@
-from deepinv.loss.mc import MCLoss
+from deepinv.loss.mc import MCLoss, MCLoss3
 from deepinv.loss.ei import EILoss
 from deepinv.loss.moi import MOILoss
 from deepinv.loss.sup import SupLoss
