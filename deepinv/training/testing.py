@@ -93,7 +93,7 @@ def test(
     for g in range(G):
         dataloader = test_dataloader[g]
 
-        batches = len(dataloader) - int(dataloader.drop_last)
+        batches = len(dataloader) #- int(dataloader.drop_last)
         iterator = iter(dataloader)
         for i in (
             progress_bar := tqdm(

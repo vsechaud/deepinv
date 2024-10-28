@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch import autograd as autograd
 from deepinv.loss.loss import Loss
-from deepinv.utils import cal_psnr
+from deepinv.utils import cal_psnr, cal_sdr
 
 
 try:
@@ -135,6 +135,12 @@ class PSNR(Loss):
         return cal_psnr(
             x_net, x, self.max_pixel, self.normalize, mean_batch=False, to_numpy=False
         )
+
+class SDR(Loss):
+    def __init__(self):
+        super(SDR, self).__init__()
+    def forward(self, x_net, x, **kwargs):
+        return cal_sdr(x, x_net, mean_batch=False, to_numpy=False)
 
 
 class LpNorm(torch.nn.Module):

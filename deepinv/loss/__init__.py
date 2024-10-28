@@ -8,5 +8,5 @@ from deepinv.loss.r2r import R2RLoss, r2r_eval
 from deepinv.loss.sure import SureGaussianLoss, SurePoissonLoss, SurePGLoss
 from deepinv.loss.regularisers import JacobianSpectralNorm, FNEJacobianSpectralNorm
 from deepinv.loss.measplit import SplittingLoss, Neighbor2Neighbor, splitting_eval
-from deepinv.loss.metric import LpNorm, PSNR, SSIM, LPIPS, NIQE
+from deepinv.loss.metric import LpNorm, PSNR, SSIM, LPIPS, NIQE, SDR
 from deepinv.loss.loss import Loss

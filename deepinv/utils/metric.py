@@ -62,6 +62,30 @@ def cal_psnr(
     else:
         return psnr
 
+def cal_sdr(
+    a: torch.Tensor,
+    b: torch.Tensor,
+    mean_batch: bool = True,
+    to_numpy: bool = True,
+):
+
+    with torch.no_grad():
+        if type(a) is list or type(a) is tuple:
+            a = a[0]
+            b = b[0]
+
+        mse = (a - b).pow(2).mean(dim=tuple(range(1, a.ndim)), keepdim=False)
+        norm_a = a.pow(2).mean(dim=tuple(range(1, a.ndim)), keepdim=False)
+        sdr = -10.0 * torch.log10(mse / norm_a  + 1e-8)
+
+    if mean_batch:
+        sdr = sdr.mean()
+
+    if to_numpy:
+        return sdr.detach().cpu().numpy()
+    else:
+        return sdr
+
 
 def cal_mse(a, b):
     """Computes the mean squared error (MSE)"""

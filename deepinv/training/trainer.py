@@ -550,8 +550,11 @@ class Trainer:
 
             if train:
                 logs["step"] = epoch
-            self.log_metrics_wandb(logs, train)  # Log metrics to wandb
+            else:
+                logs = {"Eval " + str(key): val for key, val in logs.items()}
+            #self.log_metrics_wandb(logs, train)  # Log metrics to wandb
             self.plot(epoch, physics_cur, x, y, x_net, train=train)  # plot images
+        return logs
 
     def plot(self, epoch, physics, x, y, x_net, train=True):
         r"""
@@ -636,6 +639,21 @@ class Trainer:
         self.setup_train()
 
         for epoch in range(self.epoch_start, self.epochs):
+
+            # clean meters
+            self.logs_total_loss_train.reset()
+            self.logs_total_loss_eval.reset()
+
+            for l in self.logs_losses_train:
+                l.reset()
+            for l in self.logs_metrics_train:
+                l.reset()
+            for l in self.logs_metrics_eval:
+                l.reset()
+
+            logs_eval = {}
+            logs_train = {}
+
             ## Evaluation
             perform_eval = self.eval_dataloader and (
                 (epoch + 1) % self.eval_interval == 0 or epoch + 1 == self.epochs
@@ -657,7 +675,7 @@ class Trainer:
                     )
                 ):
                     progress_bar.set_description(f"Eval epoch {epoch + 1}")
-                    self.step(
+                    logs_eval = self.step(
                         epoch, progress_bar, train=False, last_batch=(i == batches - 1)
                     )
 
@@ -679,16 +697,11 @@ class Trainer:
                 )
             ):
                 progress_bar.set_description(f"Train epoch {epoch + 1}")
-                self.step(
+                logs_train = self.step(
                     epoch, progress_bar, train=True, last_batch=(i == batches - 1)
                 )
 
-                if i < batches - 1:
-                    # clean meters
-                    self.logs_total_loss_train.reset()
-                    self.logs_total_loss_eval.reset()
-                    for l in self.logs_losses_train:
-                        l.reset()
+
 
             self.loss_history.append(self.logs_total_loss_train.avg)
 
@@ -697,6 +710,9 @@ class Trainer:
 
             # Saving the model
             self.save_model(epoch, self.eval_metrics_history if perform_eval else None)
+
+            if self.wandb_vis:
+                wandb.log(logs_train | logs_eval)
 
         if self.wandb_vis:
             wandb.save("model.h5")

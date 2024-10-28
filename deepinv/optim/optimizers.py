@@ -385,7 +385,7 @@ class BaseOptim(nn.Module):
                 )
                 metrics["residual"][i].append(residual)
                 if x_gt is not None:
-                    psnr = cal_psnr(x[i], x_gt[i])
+                    psnr = cal_psnr(x[i:i+1,::], x_gt[i:i+1,::])
                     metrics["psnr"][i].append(psnr)
                 if self.has_cost:
                     F = X["cost"][i]
