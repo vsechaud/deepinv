@@ -41,7 +41,7 @@ class EILoss(Loss):
         metric=torch.nn.MSELoss(),
         apply_noise=True,
         weight=1.0,
-        no_grad=True,
+        no_grad=False,
     ):
         super(EILoss, self).__init__()
         self.name = "ei"
@@ -50,8 +50,6 @@ class EILoss(Loss):
         self.T = transform
         self.noise = apply_noise
         self.no_grad = no_grad
-        self.use_mask = use_mask
-        self.no_div = no_div
 
     def forward(self, x_net, y, physics, model, **kwargs):
         r"""
@@ -63,20 +61,11 @@ class EILoss(Loss):
         :return: (torch.Tensor) loss.
         """
 
-        if self.use_mask:
-            mask = (y<physics.vmin) | (y>physics.vmax)
-            x_net[mask] = y[mask]
-
         if self.no_grad:
             with torch.no_grad():
                 x2 = self.T(x_net)
         else:
             x2 = self.T(x_net)
-
-        if self.no_div:
-            B, C, H, W = x2.shape
-            mask_compute = torch.count_nonzero(x2.view(B,-1)>physics.vmax, dim=1)/(C*H*W) < .7
-            x2 = x2[mask_compute]
 
         if self.noise:
             y2 = physics(x2)
