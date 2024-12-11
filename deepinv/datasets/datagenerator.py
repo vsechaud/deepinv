@@ -136,6 +136,7 @@ def generate_dataset(
     test_dataset: Dataset = None,
     val_dataset: Dataset = None,
     dataset_filename: str = "dinv_dataset",
+    physics_filename: str = "physics",
     overwrite_existing: bool = True,
     train_datapoints: int = None,
     test_datapoints: int = None,
@@ -278,7 +279,7 @@ def generate_dataset(
             physics_generator.reset_rng()
 
         # save physics
-        torch.save(physics[g].state_dict(), f"{save_dir}/physics{g}.pt")
+        torch.save(physics[g].state_dict(), f"{save_dir}/{physics_filename}{g}.pt")
 
         if train_dataset is not None:
             if isinstance(y0, TensorList):
