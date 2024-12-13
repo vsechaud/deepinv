@@ -103,7 +103,7 @@ def spectral_methods(
     y: torch.Tensor,
     physics,
     x=None,
-    n_iter=50,
+    n_iter=100,
     preprocessing=default_preprocessing,
     lamb=10.0,
     x_true=None,
