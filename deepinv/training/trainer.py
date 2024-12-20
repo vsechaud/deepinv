@@ -944,7 +944,6 @@ class Trainer:
         :returns: dict of metrics results with means and stds.
         """
         self.compare_no_learning = compare_no_learning
-        save_path_out = self.save_path
         self.setup_train(train=False)
 
         self.save_folder_im = save_path
@@ -998,7 +997,6 @@ class Trainer:
             if self.verbose:
                 print(f"{name}: {l.avg:.3f} +- {l.std:.3f}")
 
-        torch.save(out, save_path_out + "/test_results.pth")
         return out
 
 
