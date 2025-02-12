@@ -68,10 +68,10 @@ class GeneratorLoss(Loss):
     """
 
     def __init__(
-        self, weight_adv: float = 1.0, D: nn.Module = None, device="cpu", **kwargs
+        self, weight_adv: float = 1.0, D: nn.Module = None,  metric: nn.Module = nn.MSELoss(), device="cpu", **kwargs
     ):
         super().__init__(**kwargs)
-        self.metric_gan = DiscriminatorMetric(device=device)
+        self.metric_gan = DiscriminatorMetric(metric=metric, device=device)
         self.weight_adv = weight_adv
         self.D = D
 
@@ -114,10 +114,10 @@ class DiscriminatorLoss(Loss):
     """
 
     def __init__(
-        self, weight_adv: float = 1.0, D: nn.Module = None, device="cpu", **kwargs
+        self, weight_adv: float = 1.0, D: nn.Module = None, metric: nn.Module = nn.MSELoss(), device="cpu", **kwargs
     ):
         super().__init__(**kwargs)
-        self.metric_gan = DiscriminatorMetric(device=device)
+        self.metric_gan = DiscriminatorMetric(metric=metric, device=device)
         self.weight_adv = weight_adv
         self.D = D
 
