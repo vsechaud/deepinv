@@ -311,7 +311,8 @@ class CSGMGenerator(Reconstructor):
         self.inf_lr = inf_lr
         self.inf_progress_bar = inf_progress_bar
 
-    def random_latent(self, device, requires_grad=True):
+
+    def random_latent(self, y, requires_grad=True) -> Tensor:
         r"""Generate a latent sample to feed into generative model.
 
         The model must have an attribute `nz` which is the latent dimension.
@@ -321,11 +322,11 @@ class CSGMGenerator(Reconstructor):
         """
         return (
             rand(
-                1,
+                y.shape[0],
                 self.backbone_generator.nz,
                 1,
                 1,
-                device=device,
+                device=y.device,
                 requires_grad=requires_grad,
             )
             * 2
@@ -374,9 +375,8 @@ class CSGMGenerator(Reconstructor):
         :param y: measurement to reconstruct
         :param deepinv.physics.Physics physics: forward model
         """
-        z = self.random_latent(y.device)
+        z = self.random_latent(y)
 
         if not self.training:
             z = self.optimize_z(z, y, physics)
-
         return self.backbone_generator(z)

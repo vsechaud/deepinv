@@ -36,9 +36,9 @@ class SupAdversarialGeneratorLoss(GeneratorLoss):
     """
 
     def __init__(
-        self, weight_adv: float = 0.01, D: nn.Module = None, device="cpu", **kwargs
+        self, weight_adv: float = 0.01, D: nn.Module = None, metric: nn.Module = nn.MSELoss(), device="cpu", **kwargs
     ):
-        super().__init__(weight_adv=weight_adv, D=D, device=device, **kwargs)
+        super().__init__(weight_adv=weight_adv, D=D, metric=metric, device=device, **kwargs)
         self.name = "SupAdversarialGenerator"
 
     def forward(self, x: Tensor, x_net: Tensor, D: nn.Module = None, **kwargs):
@@ -70,9 +70,9 @@ class SupAdversarialDiscriminatorLoss(DiscriminatorLoss):
     """
 
     def __init__(
-        self, weight_adv: float = 1.0, D: nn.Module = None, device="cpu", **kwargs
+        self, weight_adv: float = 1.0, D: nn.Module = None, metric: nn.Module = nn.MSELoss(), device="cpu", **kwargs
     ):
-        super().__init__(weight_adv=weight_adv, D=D, device=device, **kwargs)
+        super().__init__(weight_adv=weight_adv, D=D, metric=metric, device=device, **kwargs)
         self.name = "SupAdversarialDiscriminator"
 
     def forward(self, x: Tensor, x_net: Tensor, D: nn.Module = None, **kwargs):
@@ -82,7 +82,7 @@ class SupAdversarialDiscriminatorLoss(DiscriminatorLoss):
         :param torch.Tensor x_net: reconstructed image
         :param torch.nn.Module D: discriminator model. If None, then D passed from __init__ used. Defaults to None.
         """
-        return self.adversarial_loss(x, x_net, D) * 0.5
+        return self.adversarial_loss(x, x_net, D)
 
 
 class UnsupAdversarialGeneratorLoss(GeneratorLoss):
