@@ -216,6 +216,43 @@ class AdversarialTrainer(Trainer):
         # Compute reconstructed measurement
         y_hat = physics.A(x_net)
 
+        ### Train Discriminator
+        for _ in range(self.step_ratio_D):
+            if train or self.display_losses_eval:
+                self.optimizer.D.zero_grad()
+
+                loss_total_d = 0
+                for k, l in enumerate(self.losses_d):
+                    loss = l(
+                        x=x,
+                        x_net=x_net,
+                        y=y,
+                        y_hat=y_hat,
+                        physics=physics,
+                        model=self.model,
+                        D=self.D,
+                        epoch=epoch,
+                    )
+                    loss_total_d += loss.mean()
+                    if len(self.losses_d) > 1 and self.verbose_individual_losses:
+                        current_log = (
+                            self.logs_losses_train[k + len(self.losses)]
+                            if train
+                            else self.logs_losses_eval[k + len(self.losses)]
+                        )
+                        current_log.update(loss.detach().cpu().numpy())
+                        cur_loss = current_log.avg
+                        logs[l.__class__.__name__] = cur_loss
+
+            if train:
+                loss_total_d.backward()
+
+                norm = self.check_clip_grad_D()
+                if norm is not None:
+                    logs["gradient_norm_D"] = self.check_grad_val_D.avg
+
+                self.optimizer.D.step()
+
         ### Train Generator
         if train or self.display_losses_eval:
             loss_total = 0
@@ -257,44 +294,6 @@ class AdversarialTrainer(Trainer):
 
             if step:
                 self.optimizer.G.step()
-
-        ### Train Discriminator
-        for _ in range(self.step_ratio_D):
-            if train or self.display_losses_eval:
-
-                self.optimizer.D.zero_grad()
-
-                loss_total_d = 0
-                for k, l in enumerate(self.losses_d):
-                    loss = l(
-                        x=x,
-                        x_net=x_net,
-                        y=y,
-                        y_hat=y_hat,
-                        physics=physics,
-                        model=self.model,
-                        D=self.D,
-                        epoch=epoch,
-                    )
-                    loss_total_d += loss.mean()
-                    if len(self.losses_d) > 1 and self.verbose_individual_losses:
-                        current_log = (
-                            self.logs_losses_train[k + len(self.losses)]
-                            if train
-                            else self.logs_losses_eval[k + len(self.losses)]
-                        )
-                        current_log.update(loss.detach().cpu().numpy())
-                        cur_loss = current_log.avg
-                        logs[l.__class__.__name__] = cur_loss
-
-            if train:
-                loss_total_d.backward()
-
-                norm = self.check_clip_grad_D()
-                if norm is not None:
-                    logs["gradient_norm_D"] = self.check_grad_val_D.avg
-
-                self.optimizer.D.step()
 
         return loss_total, x_net, logs
 
