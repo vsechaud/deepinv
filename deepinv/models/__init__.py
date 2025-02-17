@@ -31,7 +31,7 @@ from .dynamic import TimeAgnosticNet, TimeAveragingNet
 from .varnet import VarNet
 from .modl import MoDL
 from .multispectral import PanNet
-from .unet import UNet
+from .unet import UNet, UNet_equi
 from .ncsnpp import NCSNpp
 from .guided_diffusion import ADMUNet
 from .precond import EDMPrecond
