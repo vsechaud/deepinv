@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Optional, Union
 from warnings import warn
 import torch
-from deepinv.physics import Inpainting, Physics
+from deepinv.physics import Physics, Inpainting
+# from deepinv.physics import InpaintingDownsampling as Inpainting
 from deepinv.loss.loss import Loss
 from deepinv.loss.metric.metric import Metric
 from deepinv.physics.generator import BernoulliSplittingMaskGenerator

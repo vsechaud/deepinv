@@ -5,6 +5,29 @@ from deepinv.utils.decorators import _deprecated_alias
 import torch
 
 
+
+
+
+
+class InpaintingDownsampling(DecomposablePhysics):
+
+    def __init__(self, tensor_size, mask, device):
+        super().__init__(mask=mask.to(device))
+        self.device = device
+        self.tensor_size = tensor_size
+
+    def U(self, x):
+
+        return x[self.mask.expand(x.size(0), self.tensor_size[0], -1) == 1].view(x.size(0), self.tensor_size[0], -1)
+
+    def U_adjoint(self, y):
+
+        B, C = y.size(0), y.size(1)
+        x = torch.zeros((B, C, self.mask.shape[-1]), dtype=y.dtype, device=self.device)
+        x[self.mask.expand(B, C, -1) == 1] = y.flatten()
+        return x
+
+
 class Inpainting(DecomposablePhysics):
     r"""
     Inpainting forward operator, keeps a subset of entries.

@@ -9,6 +9,18 @@ from deepinv.utils.decorators import _deprecated_alias
 if TYPE_CHECKING:
     from deepinv.physics.generator.mri import BaseMaskGenerator
 
+class DeterministSplittingMaskGenerator(PhysicsGenerator):
+    def __init__(self, tensor_size, split_ratio, device):
+        super().__init__(device=device)
+        self.tensor_size = tensor_size
+        self.split_ratio = split_ratio
+
+    def step(self, batch_size: int = 1, seed: int = None, **kwargs):
+        mask = torch.ones(self.tensor_size, dtype=torch.int, device=self.device)
+        aux = torch.rand(self.tensor_size, device=self.device)
+        mask[:, aux[0, ...] > self.split_ratio] = 0
+        return {"mask": mask}
+
 
 class BernoulliSplittingMaskGenerator(PhysicsGenerator):
     """Base generator for splitting/inpainting masks.
