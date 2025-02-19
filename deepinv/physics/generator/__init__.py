@@ -16,6 +16,7 @@ from .mri import (
 )
 from .noise import SigmaGenerator
 from .inpainting import (
+    DeterministSplittingMaskGenerator,
     BernoulliSplittingMaskGenerator,
     GaussianSplittingMaskGenerator,
     Artifact2ArtifactSplittingMaskGenerator,
