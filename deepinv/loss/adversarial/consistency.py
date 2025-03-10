@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch import Tensor
+from torch.nn.modules.module import T
 
 from .base import GeneratorLoss, DiscriminatorLoss
 
@@ -164,3 +165,57 @@ class UnsupAdversarialDiscriminatorLoss(DiscriminatorLoss):
         :param torch.nn.Module D: discriminator model. If None, then D passed from __init__ used. Defaults to None.
         """
         return self.adversarial_loss(y, y_hat, D)
+
+
+
+from deepinv.physics import InpaintingDownsampling as Inpainting
+import torch
+
+class SplittingGeneratorLoss(GeneratorLoss):
+    def __init__(self, weight_adv: float = 1.0, D: nn.Module = None, device="cpu"):
+        super().__init__(weight_adv=weight_adv, D=D, device=device)
+        self.name = "SplittingGenerator"
+
+    @staticmethod
+    def split(mask: torch.Tensor, y: torch.Tensor):
+
+        inp = Inpainting(y.size()[1:], mask=mask, device=y.device)
+
+        # divide measurements y_i = M_i * y
+        y_split = inp.A(y)
+
+        return y_split
+
+    def forward(self, y: Tensor, y_hat: Tensor, model, D: nn.Module = None, **kwargs):
+        mask = model.get_mask()
+
+        mask2 = 1.0 - mask
+        y2 = self.split(mask2, y)
+        y_hat2 = self.split(mask2, y_hat)
+
+        return self.adversarial_loss(y2, y_hat2, D)
+
+
+
+class SplittingDiscriminatorLoss(DiscriminatorLoss):
+    def __init__(self, weight_adv: float = 1.0, D: nn.Module = None, device="cpu"):
+        super().__init__(weight_adv=weight_adv, D=D, device=device)
+        self.name = "SplittingDiscriminator"
+
+    @staticmethod
+    def split(mask: torch.Tensor, y: torch.Tensor):
+        inp = Inpainting(y.size()[1:], mask=mask, device=y.device)
+
+        # divide measurements y_i = M_i * y
+        y_split = inp.A(y)
+
+        return y_split
+
+    def forward(self, y: Tensor, y_hat: Tensor, model, D: nn.Module = None, **kwargs):
+        mask = model.get_mask()
+
+        mask2 = 1.0 - mask
+        y2 = self.split(mask2, y)
+        y_hat2 = self.split(mask2, y_hat)
+
+        return self.adversarial_loss(y2, y_hat2, D)
