@@ -2,13 +2,16 @@ from __future__ import annotations
 from typing import Optional, Union
 from warnings import warn
 import torch
-from deepinv.physics import Physics#, Inpainting
-from deepinv.physics import InpaintingDownsampling as Inpainting
+from deepinv.physics import Physics
+from deepinv.physics import Inpainting as InpaintingOrigine
+from deepinv.physics import InpaintingDownsampling
 from deepinv.loss.loss import Loss
 from deepinv.loss.metric.metric import Metric
 from deepinv.physics.generator import BernoulliSplittingMaskGenerator
 from deepinv.models.base import Reconstructor
 
+down = False
+Inpainting = InpaintingDownsampling if down else InpaintingOrigine
 
 class SplittingLoss(Loss):
     r"""

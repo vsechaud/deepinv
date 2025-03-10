@@ -1,14 +1,17 @@
 import numpy as np
 from tqdm import tqdm
 
+import torch
 import torch.nn as nn
 from torch import Tensor
 from torch import rand
+from torch import from_numpy
 from torch.optim import Adam
 from deepinv.physics import Physics
 from deepinv.loss import MCLoss
 from .base import Reconstructor
 from deepinv.utils.decorators import _deprecated_alias
+import nevergrad as ng
 
 
 class PatchGANDiscriminator(nn.Module):
@@ -34,6 +37,7 @@ class PatchGANDiscriminator(nn.Module):
 
     def __init__(
         self,
+        dim_input = 3,
         input_nc: int = 3,
         ndf: int = 64,
         n_layers: int = 3,
@@ -42,11 +46,17 @@ class PatchGANDiscriminator(nn.Module):
         bias: bool = True,
     ):
         super().__init__()
+        if dim_input == 3:
+            conv = nn.Conv2d
+        elif dim_input == 2:
+            conv = nn.Conv1d
+        else:
+            raise ValueError("dim_input must be 2 or 3.")
 
         kw = 4  # kernel width
         padw = int(np.ceil((kw - 1) / 2))
         sequence = [
-            nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw),
+            conv(input_nc, ndf, kernel_size=kw, stride=2, padding=padw),
             nn.LeakyReLU(0.2, True),
         ]
 
@@ -56,7 +66,7 @@ class PatchGANDiscriminator(nn.Module):
             nf_mult_prev = nf_mult
             nf_mult = min(2**n, 8)
             sequence += [
-                nn.Conv2d(
+                conv(
                     ndf * nf_mult_prev,
                     ndf * nf_mult,
                     kernel_size=kw,
@@ -71,7 +81,7 @@ class PatchGANDiscriminator(nn.Module):
         nf_mult_prev = nf_mult
         nf_mult = min(2**n_layers, 8)
         sequence += [
-            nn.Conv2d(
+            conv(
                 ndf * nf_mult_prev,
                 ndf * nf_mult,
                 kernel_size=kw,
@@ -84,7 +94,7 @@ class PatchGANDiscriminator(nn.Module):
         ]
 
         sequence += [
-            nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)
+            conv(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)
         ]
 
         if use_sigmoid:
@@ -362,7 +372,27 @@ class CSGMGenerator(Reconstructor):
 
             if err_perc < self.inf_tol:
                 break
-        return z
+
+        # suggest_point = z.flatten().detach().cpu().numpy().clip(-1, 1)
+        z = ng.p.Array(shape=(self.backbone_generator.nz,), lower=-1, upper=1)
+        instrum = ng.p.Instrumentation(z)
+        optim = ng.optimizers.registry["TwoPointsDE"](parametrization=instrum, budget=3000)
+        loss = lambda z: self.func(z, y, physics)
+        # optim.suggest(suggest_point)
+        for _ in range(optim.budget):
+            x = optim.ask()
+            error = loss(*x.args)
+            optim.tell(x, error)
+        recommendation = optim.recommend()
+        # recommendation = optim.minimize(self.func)
+        return from_numpy(recommendation.args[0]).to(torch.float).to(y.device).reshape(1, -1, 1, 1)
+
+    def func(self, z, y, physics):
+        input = from_numpy(z).to(torch.float).to(y.device).reshape(1, -1, 1, 1)
+        x_hat = self.backbone_generator(input)
+        error = self.inf_loss(y=y, x_net=x_hat, physics=physics)
+        return error.item()
+
 
     def forward(self, y: Tensor, physics: Physics, *args, **kwargs):
         r"""Forward pass of generator model.
