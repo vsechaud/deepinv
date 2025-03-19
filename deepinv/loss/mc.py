@@ -40,4 +40,4 @@ class MCLoss(Loss):
         :param deepinv.physics.Physics physics: forward operator associated with the measurements.
         :return: (:class:`torch.Tensor`) loss.
         """
-        return self.metric(physics.A(x_net), y)/physics.B_norm
+        return self.metric(physics.A(x_net), y)
