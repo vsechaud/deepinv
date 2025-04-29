@@ -3,7 +3,9 @@ from typing import Optional, Tuple, Union
 from copy import deepcopy
 from warnings import warn
 import torch
-from deepinv.physics import Inpainting, Physics
+from deepinv.physics import Physics
+from deepinv.physics import Inpainting as InpaintingOrigine
+from deepinv.physics import InpaintingDownsampling
 from deepinv.loss.loss import Loss
 from deepinv.loss.metric.metric import Metric
 from deepinv.physics.generator import (
@@ -16,6 +18,8 @@ from deepinv.models.dynamic import TimeAveragingNet
 from deepinv.physics.time import TimeMixin
 from deepinv.models.base import Reconstructor
 
+down = False
+Inpainting = InpaintingDownsampling if down else InpaintingOrigine
 
 class SplittingLoss(Loss):
     r"""

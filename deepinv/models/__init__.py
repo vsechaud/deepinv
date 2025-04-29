@@ -2,6 +2,7 @@ from .base import Denoiser, Reconstructor
 from .drunet import DRUNet
 from .scunet import SCUNet
 from .ae import AutoEncoder
+from .unet import UNet, UNet_equi
 from .dncnn import DnCNN
 from .artifactremoval import ArtifactRemoval
 from .tv import TVDenoiser
