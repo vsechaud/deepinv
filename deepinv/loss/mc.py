@@ -26,10 +26,11 @@ class MCLoss(Loss):
     :param Metric, torch.nn.Module metric: metric used for computing data consistency, which is set as the mean squared error by default.
     """
 
-    def __init__(self, metric: Union[Metric, torch.nn.Module] = torch.nn.MSELoss()):
+    def __init__(self, metric: Union[Metric, torch.nn.Module] = torch.nn.MSELoss(), normalize: bool = False):
         super(MCLoss, self).__init__()
         self.name = "mc"
         self.metric = metric
+        self.normalize = normalize
 
     def forward(self, y, x_net, physics, **kwargs):
         r"""
@@ -40,4 +41,5 @@ class MCLoss(Loss):
         :param deepinv.physics.Physics physics: forward operator associated with the measurements.
         :return: (:class:`torch.Tensor`) loss.
         """
-        return self.metric(physics.A(x_net), y)
+        B_norm =  physics.B_norm if self.normalize else 1
+        return self.metric(physics.A(x_net), y) / B_norm
