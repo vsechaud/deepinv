@@ -86,4 +86,5 @@ class EILoss(Loss):
         x3 = model(y, physics)
 
         loss_ei = self.weight * self.metric(x3, x2)
+        # loss_ei = loss_ei / x2.abs().pow(2).sum(dim=tuple(range(1, x2.ndim))) if self.no_grad else loss_ei
         return loss_ei
