@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
 
+
 def bicubic_filter(factor=2):
     r"""
     Bicubic filter.
@@ -83,6 +84,7 @@ def conv2d(
 
     return output
 
+
 class EquivMaxPool(nn.Module):
     r"""
     Max pooling layer that is equivariant to translations.
@@ -93,7 +95,7 @@ class EquivMaxPool(nn.Module):
     :param bool circular_padding: circular padding for the convolutional layers.
     """
 
-    def __init__(self, antialias=True, factor=2, device='cpu'):
+    def __init__(self, antialias=True, factor=2, device="cpu"):
         super(EquivMaxPool, self).__init__()
         self.antialias = antialias
         if antialias:
@@ -107,7 +109,7 @@ class EquivMaxPool(nn.Module):
         """
 
         if self.antialias:
-            x = conv2d(x, self.antialias_kernel, padding='circular')
+            x = conv2d(x, self.antialias_kernel, padding="circular")
 
         B, _, _, _ = x.shape
 
@@ -122,7 +124,6 @@ class EquivMaxPool(nn.Module):
 
         return out
 
-
     def upscale(self, x):
         B, C, H, W = x.shape
 
@@ -136,7 +137,7 @@ class EquivMaxPool(nn.Module):
         out = conv2d(out, filt, padding="constant")
 
         if self.antialias:
-            out = conv2d(out, self.antialias_kernel, padding='circular')
+            out = conv2d(out, self.antialias_kernel, padding="circular")
 
         return out
 
@@ -225,7 +226,7 @@ class UNet_equi(Denoiser):
         bias=True,
         batch_norm=True,
         scales=4,
-        device="cpu"
+        device="cpu",
     ):
         super(UNet_equi, self).__init__()
         self.name = "unet"
@@ -258,7 +259,13 @@ class UNet_equi(Denoiser):
                     ),
                     nn.ReLU(inplace=True),
                     nn.Conv2d(
-                        ch_out, ch_out, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode="circular" if circular_padding else "zeros"
+                        ch_out,
+                        ch_out,
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=bias,
+                        padding_mode="circular" if circular_padding else "zeros",
                     ),
                     (
                         BFBatchNorm2d(ch_out, use_bias=bias)
@@ -280,7 +287,13 @@ class UNet_equi(Denoiser):
                     ),
                     nn.ReLU(inplace=True),
                     nn.Conv2d(
-                        ch_out, ch_out, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode="circular" if circular_padding else "zeros"
+                        ch_out,
+                        ch_out,
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=bias,
+                        padding_mode="circular" if circular_padding else "zeros",
                     ),
                     nn.ReLU(inplace=True),
                 )
@@ -289,7 +302,13 @@ class UNet_equi(Denoiser):
             if batch_norm:
                 return nn.Sequential(
                     nn.Conv2d(
-                        ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode="circular" if circular_padding else "zeros"
+                        ch_in,
+                        ch_out,
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=bias,
+                        padding_mode="circular" if circular_padding else "zeros",
                     ),
                     (
                         BFBatchNorm2d(ch_out, use_bias=bias)
@@ -301,7 +320,13 @@ class UNet_equi(Denoiser):
             else:
                 return nn.Sequential(
                     nn.Conv2d(
-                        ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode="circular" if circular_padding else "zeros"
+                        ch_in,
+                        ch_out,
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=bias,
+                        padding_mode="circular" if circular_padding else "zeros",
                     ),
                     nn.ReLU(inplace=True),
                 )
@@ -453,6 +478,7 @@ class UNet_equi(Denoiser):
 
         out = d1 + x if self.residual and self.in_channels == self.out_channels else d1
         return out
+
 
 class UNet(Denoiser):
     r"""
