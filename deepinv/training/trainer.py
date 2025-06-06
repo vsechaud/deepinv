@@ -180,6 +180,7 @@ class Trainer:
     :param bool show_progress_bar: Show a progress bar during training. Default is ``True``.
     :param bool check_grad: Compute and print the gradient norm at each iteration. Default is ``False``.
     :param bool display_losses_eval: If ``True``, the losses are displayed during evaluation. Default is ``False``.
+    :param bool merge_losses: If ``False``, report the total loss twice when using a single loss (one with total loss as the key, one with the loss name as the key). Default is ``True``.
 
     |sep|
 
@@ -232,6 +233,7 @@ class Trainer:
     verbose: bool = True
     verbose_individual_losses: bool = True
     show_progress_bar: bool = True
+    merge_losses: bool = True
 
     def setup_train(self, train=True, **kwargs):
         r"""
@@ -619,7 +621,9 @@ class Trainer:
                     epoch=epoch,
                 )
                 loss_total += loss.mean()
-                if len(self.losses) > 1 and self.verbose_individual_losses:
+                if (
+                    len(self.losses) > 1 or not self.merge_losses
+                ) and self.verbose_individual_losses:
                     meters = (
                         self.logs_losses_train[k] if train else self.logs_losses_eval[k]
                     )
