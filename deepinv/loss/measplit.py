@@ -9,6 +9,7 @@ from deepinv.loss.loss import Loss
 from deepinv.loss.metric.metric import Metric
 from deepinv.physics.generator import BernoulliSplittingMaskGenerator
 from deepinv.models.base import Reconstructor
+from deepinv.transform import Shift
 
 down = False
 Inpainting = InpaintingDownsampling if down else InpaintingOrigine
@@ -173,6 +174,9 @@ class SplittingLoss(Loss):
 
         return l / mask2.mean() if self.normalize_loss else l
 
+        # loss_ms = self.metric(physics.A(x_net), y) # marche plutot bien
+        # return loss_ms / mask.mean()
+
     def adapt_model(
         self, model: torch.nn.Module, eval_n_samples=None
     ) -> SplittingModel:
@@ -296,7 +300,7 @@ class SplittingLoss(Loss):
                     and self.eval_split_input
                     and not self.training
                 ):
-                    return self._forward_split_input_output(y, physics)
+                    return self._forward_split_output_equi(y, physics)   #self._forward_split_input_output(y, physics)  #
                 else:
                     return self._forward_split_input(
                         y, physics, update_parameters=update_parameters
@@ -348,6 +352,41 @@ class SplittingLoss(Loss):
             out[normaliser != 0] /= normaliser[normaliser != 0]
 
             return out
+
+        @staticmethod
+        def include(A, B):
+            return (B * A == A).all().item()
+
+        def compute_A2(self, mask, mask1, T):
+            mask2 = torch.zeros_like(mask)
+            for i in range(28):
+                for j in range(28):
+                    params = {'x_shift': torch.tensor([i]), 'y_shift': torch.tensor([j])}
+                    maskT = T(mask, **params)
+                    if self.include(mask1, maskT):
+                        mask2 += maskT - mask1
+            return mask2
+
+        def _forward_split_output_equi(self, y:torch.Tensor, physics: Physics, transform = Shift()):
+            out = 0
+            normaliser = torch.zeros_like(y)
+
+            for _ in range( self.eval_n_samples):
+                # Perform input masking
+
+                mask1 = self.mask_generator.step(
+                    y.size(0), input_mask=getattr(physics, "mask", None)
+                )["mask"]
+                y1, physics1 = self.split(mask1, y, physics)
+                x_net = self.model(y1, physics1)
+                mask2 = self.compute_A2(getattr(physics, "mask", 1.0), mask1, transform)
+                out += mask2 * x_net
+                normaliser += mask2
+
+            out[normaliser != 0] /= normaliser[normaliser != 0]
+
+            return out
+
 
         def get_mask(self):
             if not isinstance(self.mask, torch.Tensor):

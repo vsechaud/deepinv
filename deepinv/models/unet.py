@@ -189,6 +189,33 @@ class BFBatchNorm2d(nn.BatchNorm2d):
 
         return y.view(return_shape).transpose(0, 1)
 
+class LayerNorm_AF(nn.Module):
+
+    def __init__(self, normalized_shape, eps=1e-6, bias=True):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(normalized_shape))
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(normalized_shape))
+        else:
+            self.bias = None
+        self.eps = eps
+        self.normalized_shape = (normalized_shape,)
+        self.u_dims = 1
+        self.s_dims = (1, 2, 3)
+
+    def forward(self, x):
+        """
+        Forward pass for layer normalization.
+
+        :param torch.Tensor x: Input tensor
+        """
+        u = x.mean(self.u_dims, keepdim=True)
+        s = (x - u).pow(2).mean(self.s_dims, keepdim=True)
+        x = (x - u) / torch.sqrt(s + self.eps)
+        x = self.weight[:, None, None] * x
+        if self.bias is not None:
+            x = x + self.bias[:, None, None]
+        return x
 
 class UNet_equi(Denoiser):
     r"""
@@ -225,7 +252,8 @@ class UNet_equi(Denoiser):
         bias=True,
         batch_norm=True,
         scales=4,
-        device="cpu"
+        device="cpu",
+        equivariance=True,
     ):
         super(UNet_equi, self).__init__()
         self.name = "unet"
@@ -239,6 +267,15 @@ class UNet_equi(Denoiser):
 
         biasfree = batch_norm == "biasfree"
 
+        def norm(channels, bias):
+            if equivariance:
+                return LayerNorm_AF(channels, bias=bias)
+            else:
+                if biasfree:
+                    return BFBatchNorm2d(channels, use_bias=bias)
+                else:
+                    return nn.BatchNorm2d(channels)
+
         def conv_block(ch_in, ch_out):
             if batch_norm:
                 return nn.Sequential(
@@ -251,20 +288,12 @@ class UNet_equi(Denoiser):
                         bias=bias,
                         padding_mode="circular" if circular_padding else "zeros",
                     ),
-                    (
-                        BFBatchNorm2d(ch_out, use_bias=bias)
-                        if biasfree
-                        else nn.BatchNorm2d(ch_out)
-                    ),
+                    norm(channels=ch_out, bias=bias),
                     nn.ReLU(inplace=True),
                     nn.Conv2d(
                         ch_out, ch_out, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode="circular" if circular_padding else "zeros"
                     ),
-                    (
-                        BFBatchNorm2d(ch_out, use_bias=bias)
-                        if biasfree
-                        else nn.BatchNorm2d(ch_out)
-                    ),
+                    norm(channels=ch_out, bias=bias),
                     nn.ReLU(inplace=True),
                 )
             else:
@@ -291,11 +320,7 @@ class UNet_equi(Denoiser):
                     nn.Conv2d(
                         ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode="circular" if circular_padding else "zeros"
                     ),
-                    (
-                        BFBatchNorm2d(ch_out, use_bias=bias)
-                        if biasfree
-                        else nn.BatchNorm2d(ch_out)
-                    ),
+                    norm(channels=ch_out, bias=bias),
                     nn.ReLU(inplace=True),
                 )
             else:
