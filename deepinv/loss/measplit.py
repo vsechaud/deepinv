@@ -5,14 +5,22 @@ import torch
 from deepinv.physics import Physics
 from deepinv.physics import Inpainting as InpaintingOrigine
 from deepinv.physics import InpaintingDownsampling
+from deepinv.physics.noise import ZeroNoise
 from deepinv.loss.loss import Loss
 from deepinv.loss.metric.metric import Metric
 from deepinv.physics.generator import BernoulliSplittingMaskGenerator
 from deepinv.models.base import Reconstructor
 from deepinv.transform import Shift
+import types
 
 down = False
 Inpainting = InpaintingDownsampling if down else InpaintingOrigine
+
+
+def A_adjoint(self, y, **kwargs):
+    for physics in reversed(self.physics_list):
+        y = physics.A_adjoint(y, **kwargs)
+    return y
 
 class SplittingLoss(Loss):
     r"""
@@ -139,6 +147,7 @@ class SplittingLoss(Loss):
                 *mask.shape[:2], *([1] * (y.ndim - mask.ndim)), *mask.shape[2:]
             ),
             device=y.device,
+            noise_model=ZeroNoise()
         )
 
         # divide measurements y_i = M_i * y
@@ -150,6 +159,8 @@ class SplittingLoss(Loss):
 
         physics_split = inp * physics
         physics_split.noise_model = physics.noise_model
+
+        # physics_split.A_adjoint = types.MethodType(A_adjoint, physics_split)
 
         return y_split, physics_split
 
@@ -171,11 +182,10 @@ class SplittingLoss(Loss):
         y2, physics2 = self.split(mask2, y, physics)
 
         l = self.metric(physics2.A(x_net), y2)
+        # l = self.metric(physics.A(x_net), y) # marche plutot bien
 
         return l / mask2.mean() if self.normalize_loss else l
 
-        # loss_ms = self.metric(physics.A(x_net), y) # marche plutot bien
-        # return loss_ms / mask.mean()
 
     def adapt_model(
         self, model: torch.nn.Module, eval_n_samples=None
@@ -286,10 +296,10 @@ class SplittingLoss(Loss):
                     device=y.device,
                 )
 
-            if self.mask_generator.img_size[-2:] != y.shape[-2:]:
-                raise ValueError(
-                    f"Mask generator should be same shape as y in last 2 dims, but mask has {self.mask_generator.img_size[-2:]} and y has {y.shape[-2:]}"
-                )
+            # if self.mask_generator.img_size[-2:] != y.shape[-2:]:
+            #     raise ValueError(
+            #         f"Mask generator should be same shape as y in last 2 dims, but mask has {self.mask_generator.img_size[-2:]} and y has {y.shape[-2:]}"
+            #     )
 
             with torch.set_grad_enabled(self.training):
                 if not self.eval_split_input and not self.training:

@@ -11,8 +11,8 @@ import torch
 
 class InpaintingDownsampling(DecomposablePhysics):
 
-    def __init__(self, tensor_size, mask, device):
-        super().__init__(mask=mask.to(device))
+    def __init__(self, tensor_size, mask, device, **kwargs):
+        super().__init__(mask=mask.to(device), **kwargs)
         self.device = device
         self.tensor_size = tensor_size
 
