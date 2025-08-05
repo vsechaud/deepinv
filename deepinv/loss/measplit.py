@@ -116,6 +116,7 @@ class SplittingLoss(Loss):
         eval_split_output: bool = False,
         pixelwise: bool = True,
         normalize_loss: bool = True,
+        full: bool = False,
     ):
         super().__init__()
         self.name = "ms"
@@ -127,6 +128,7 @@ class SplittingLoss(Loss):
         self.eval_split_output = eval_split_output
         self.pixelwise = pixelwise
         self.normalize_loss = normalize_loss
+        self.full = full
 
     @staticmethod
     def split(mask: torch.Tensor, y: torch.Tensor, physics: Optional[Physics] = None):
@@ -181,10 +183,12 @@ class SplittingLoss(Loss):
         mask2 = getattr(physics, "mask", 1.0) - mask
         y2, physics2 = self.split(mask2, y, physics)
 
-        l = self.metric(physics2.A(x_net), y2)
-        # l = self.metric(physics.A(x_net), y) # marche plutot bien
+        if self.full:
+            l = self.metric(physics.A(x_net), y)  # marche plutot bien
+        else:
+            l = self.metric(physics2.A(x_net), y2)
 
-        return l / mask2.mean() if self.normalize_loss else l
+        return l / mask2.mean() if self.normalize_loss and not(self.full) else l
 
 
     def adapt_model(
@@ -296,10 +300,10 @@ class SplittingLoss(Loss):
                     device=y.device,
                 )
 
-            # if self.mask_generator.img_size[-2:] != y.shape[-2:]:
-            #     raise ValueError(
-            #         f"Mask generator should be same shape as y in last 2 dims, but mask has {self.mask_generator.img_size[-2:]} and y has {y.shape[-2:]}"
-            #     )
+            if self.mask_generator.img_size[-2:] != y.shape[-2:]:
+                raise ValueError(
+                    f"Mask generator should be same shape as y in last 2 dims, but mask has {self.mask_generator.img_size[-2:]} and y has {y.shape[-2:]}"
+                )
 
             with torch.set_grad_enabled(self.training):
                 if not self.eval_split_input and not self.training:
