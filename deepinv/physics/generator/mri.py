@@ -387,3 +387,34 @@ class EquispacedMaskGenerator(BaseMaskGenerator):
                 mask[b, :, t, :, accel_samples] = 1
 
         return mask
+
+class CenterSquareMaskGenerator(BaseMaskGenerator):
+    """
+    Generate a mask with a central square of size a x a filled with 1s, rest is 0.
+
+    :param int a: size of the square side (must be smaller than H and W).
+    """
+
+    def __init__(self, img_size, a: int, **kwargs):
+        super().__init__(img_size, **kwargs)
+        self.a = a
+        if self.a > self.H or self.a > self.W:
+            raise ValueError("Square size 'a' must be smaller than both image height and width.")
+
+    def sample_mask(self, mask: torch.Tensor) -> torch.Tensor:
+        """
+        Fill a square of size a x a in the center of each mask with 1s.
+
+        :param mask: Tensor of shape (B, C, T, H, W)
+        :return: Tensor with central square filled
+        """
+        B, C, T, H, W = mask.shape
+        h_start = (H - self.a) // 2
+        h_end = h_start + self.a
+        w_start = (W - self.a) // 2
+        w_end = w_start + self.a
+
+        mask[:, :, :, h_start:h_end, w_start:w_end] = 1
+        return mask
+    def get_pdf(self) -> torch.Tensor:
+        raise NotImplementedError("get_pdf is undefined for this mask generator.")

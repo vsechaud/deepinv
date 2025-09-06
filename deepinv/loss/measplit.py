@@ -223,6 +223,7 @@ class SplittingLoss(Loss):
         if isinstance(model, self.SplittingModel):
             return model
         else:
+            print("model modified for splitting loss")
             return self.SplittingModel(
                 model,
                 split_ratio=self.split_ratio,
@@ -300,10 +301,10 @@ class SplittingLoss(Loss):
                     device=y.device,
                 )
 
-            if self.mask_generator.img_size[-2:] != y.shape[-2:]:
-                raise ValueError(
-                    f"Mask generator should be same shape as y in last 2 dims, but mask has {self.mask_generator.img_size[-2:]} and y has {y.shape[-2:]}"
-                )
+            # if self.mask_generator.img_size[-2:] != y.shape[-2:]:
+            #     raise ValueError(
+            #         f"Mask generator should be same shape as y in last 2 dims, but mask has {self.mask_generator.img_size[-2:]} and y has {y.shape[-2:]}"
+            #     )
 
             with torch.set_grad_enabled(self.training):
                 if not self.eval_split_input and not self.training:

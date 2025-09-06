@@ -513,6 +513,7 @@ class UNet(Denoiser):
         cat=True,
         bias=True,
         batch_norm=True,
+        layer_norm=False,
         scales=4,
     ):
         super(UNet, self).__init__()
@@ -528,6 +529,15 @@ class UNet(Denoiser):
 
         biasfree = batch_norm == "biasfree"
 
+        def norm(channels, bias):
+            if layer_norm:
+                return LayerNorm_AF(channels, bias=bias)
+            else:
+                if biasfree:
+                    return BFBatchNorm2d(channels, use_bias=bias)
+                else:
+                    return nn.BatchNorm2d(channels)
+
         def conv_block(ch_in, ch_out):
             if batch_norm:
                 return nn.Sequential(
@@ -540,20 +550,12 @@ class UNet(Denoiser):
                         bias=bias,
                         padding_mode="circular" if circular_padding else "zeros",
                     ),
-                    (
-                        BFBatchNorm2d(ch_out, use_bias=bias)
-                        if biasfree
-                        else nn.BatchNorm2d(ch_out)
-                    ),
+                    norm(channels=ch_out, bias=bias),
                     nn.ReLU(inplace=True),
                     nn.Conv2d(
                         ch_out, ch_out, kernel_size=3, stride=1, padding=1, bias=bias
                     ),
-                    (
-                        BFBatchNorm2d(ch_out, use_bias=bias)
-                        if biasfree
-                        else nn.BatchNorm2d(ch_out)
-                    ),
+                    norm(channels=ch_out, bias=bias),
                     nn.ReLU(inplace=True),
                 )
             else:
@@ -581,11 +583,7 @@ class UNet(Denoiser):
                     nn.Conv2d(
                         ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=bias
                     ),
-                    (
-                        BFBatchNorm2d(ch_out, use_bias=bias)
-                        if biasfree
-                        else nn.BatchNorm2d(ch_out)
-                    ),
+                    norm(channels=ch_out, bias=bias),
                     nn.ReLU(inplace=True),
                 )
             else:

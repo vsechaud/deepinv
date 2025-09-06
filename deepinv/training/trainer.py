@@ -821,14 +821,14 @@ class Trainer:
             else:
                 self.log_metrics_wandb(logs, step=epoch, train=train)
 
-            self.plot(
-                epoch,
-                physics_cur,
-                x,
-                y,
-                x_net,
-                train=train,
-            )
+        self.plot(
+            epoch,
+            physics_cur,
+            x,
+            y,
+            x_net,
+            train=train,
+        )
 
     def plot(self, epoch, physics, x, y, x_net, train=True):
         r"""
@@ -882,7 +882,7 @@ class Trainer:
                     img_name = f"{self.save_folder_im}/{titles[k]}/"
                     # make dir
                     Path(img_name).mkdir(parents=True, exist_ok=True)
-                    save_image(img, img_name + f"{self.img_counter + i}.png")
+                    save_image(img[i], img_name + f"{self.img_counter + i}.png")
 
                 self.img_counter += len(imgs[0])
 

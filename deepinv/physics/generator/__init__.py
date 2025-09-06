@@ -14,6 +14,7 @@ from .mri import (
     RandomMaskGenerator,
     EquispacedMaskGenerator,
     PolyOrderMaskGenerator,
+    CenterSquareMaskGenerator,
 )
 from .noise import SigmaGenerator, GainGenerator
 from .inpainting import (
