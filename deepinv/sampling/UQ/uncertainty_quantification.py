@@ -21,9 +21,9 @@ class Bootsrap(UQ):
     def __init__(self, **kwargs):
         super(Bootsrap, self).__init__(**kwargs)
 
-    def sample(self, data, n_samples):
+    def sample(self, y, model, MC, statistics):
         pass
 
-    def coverage(self, data, alpha):
+    def coverage(self, alpha, statstics):
         pass
 
