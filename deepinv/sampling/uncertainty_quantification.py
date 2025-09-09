@@ -75,8 +75,8 @@ class UQ(nn.Module):
             x_net = self.model(y, physics=None)
             B = x.shape[0]
             xhat = x_net.mean(1)
-            true_mse_batch = MSE()(x, xhat)
-            estimated_mse_batch = MSE()(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC)  # (x.repeat_interleave(100, dim=0) == x.unsqueeze(1).expand(-1,100,-1,-1, -1).reshape(-1,3,28,28)).all()
+            true_mse_batch = self.metric(x, xhat)
+            estimated_mse_batch = self.metric(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC)
 
             true_mse[k:k + x.shape[0]] = true_mse_batch
             estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch
