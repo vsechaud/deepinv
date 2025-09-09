@@ -5,7 +5,7 @@ from deepinv.loss.metric import MSE
 import matplotlib.pyplot as plt
 
 
-class UQ(nn.modules):
+class UQ(nn.Module):
     r"""
         Uncertainty quantification (UQ) class for evaluating reconstruction models.
 
@@ -91,7 +91,7 @@ class UQ(nn.modules):
         to assess the reliability of the uncertainty estimates.
 
         It produces a coverage plot where the empirical coverage is compared
-        against the nominal confidence levels.
+        against the confidence levels.
 
         Returns
         -------
