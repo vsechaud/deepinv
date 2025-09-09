@@ -10,10 +10,9 @@ from deepinv.models import Reconstructor
 
 
 class Bootstrap(Reconstructor):
-    def __init__(self, model, img_size, T=Identity(),  method='parametric', MC=100, **kwargs):
+    def __init__(self, model, img_size, T=Identity(), MC=100, **kwargs):
         super(Bootstrap, self).__init__(**kwargs)
         self.model = model
-        self.method = method
         self.T = T
         self.MC = MC
         if T.n_trans != MC:
