@@ -72,3 +72,13 @@ class MSEStatistic(BaseStatistic):
 
     def forward(self, a: torch.Tensor, b: torch.Tensor, **kwargs):
         return cal_mse(a, b)
+
+class TrueMSEStatistic(BaseStatistic):
+
+    def __init__(self, **kwargs):
+        super(TrueMSEStatistic, self).__init__(**kwargs)
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor, **kwargs):
+        xhat = MeanStatistic()
+
+        return cal_mse(x, y)
