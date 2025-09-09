@@ -33,8 +33,9 @@ class Bootstrap(Reconstructor):
         If ``T.n_trans`` is different from ``MC``, it will be overridden to match ``MC``.
     """
 
-    def __init__(self, img_size, model, physics, T=Identity(), MC=100, device ="cpu"):
-        super().__init__()
+
+    def __init__(self, img_size, model, physics, T=Identity(), MC=100, device='cpu'):
+        super(Bootstrap, self).__init__()
         self.model = model
         self.T = T
         self.MC = MC
@@ -43,7 +44,8 @@ class Bootstrap(Reconstructor):
         T.n_trans = MC
         self.img_size = img_size
         self.physics = physics
-        self.device = device
+        self.device = device  
+
 
     def forward(self, y, physics, **kwargs):
         """
