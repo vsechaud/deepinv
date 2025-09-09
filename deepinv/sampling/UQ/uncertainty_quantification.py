@@ -1,11 +1,36 @@
 from torch import nn
 import numpy as np
 from tqdm import tqdm
-from torch.utils.data import DataLoader
-from statistics import *
 from deepinv.loss.metric import MSE
 import matplotlib.pyplot as plt
+from deepinv.transform import Identity
 
+import torch
+from deepinv.models import Reconstructor
+
+
+class Bootstrap(Reconstructor):
+    def __init__(self, model, img_size, T=Identity(),  method='parametric', MC=100, **kwargs):
+        super(Bootstrap, self).__init__(**kwargs)
+        self.model = model
+        self.method = method
+        self.T = T
+        self.MC = MC
+        if T.n_trans != MC:
+            print(f"Warning: T.n_trans ({T.n_trans}) != MC ({MC}), n_trans set to MC")
+        T.n_trans = MC
+        self.img_size = img_size
+        
+
+    def forward(self, y, physics):
+
+        x_net = self.model(y, physics)
+        params = self.T.get_params(x_net)
+        bootstrap_measurements = physics(self.T(x_net, **params).reshape(-1, *self.img_size))
+        samples = self.model(bootstrap_measurements, physics)
+        samples = self.T.inverse(samples, **params).reshape(-1, self.MC, *self.img_size)
+        
+        return samples
 
 class UQ(nn.modules):
 
@@ -26,9 +51,7 @@ class UQ(nn.modules):
         for x, y in tqdm(self.dataloader, disable=True):
             x_net = self.model(y)
             B = x.shape[0]
-
             xhat = x_net.mean(1)
-
             true_mse_batch = MSE()(x, xhat)
             estimated_mse_batch = MSE()(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC)  # (x.repeat_interleave(100, dim=0) == x.unsqueeze(1).expand(-1,100,-1,-1, -1).reshape(-1,3,28,28)).all()
 
@@ -66,4 +89,3 @@ class UQ(nn.modules):
         plt.xlabel('Confidence level')
         plt.ylabel('Empirical coverage')
         plt.show()
-
