@@ -67,19 +67,19 @@ class UQ(nn.Module):
         true_mse = np.zeros(N)
         estimated_mse = np.zeros((N, self.MC))
         k = 0
+        with torch.no_grad():
+            for x, y in tqdm(self.dataloader, disable=True):
+                x = x.to(self.device)
+                y = y.to(self.device)
+                x_net = self.model(y, physics=None)
+                B = x.shape[0]
+                xhat = x_net.mean(1)
+                true_mse_batch = self.metric(x, xhat).cpu()
+                estimated_mse_batch = self.metric(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC).cpu()
 
-        for x, y in tqdm(self.dataloader, disable=True):
-            x = x.to(self.device)
-            y = y.to(self.device)
-            x_net = self.model(y, physics=None)
-            B = x.shape[0]
-            xhat = x_net.mean(1)
-            true_mse_batch = self.metric(x, xhat)
-            estimated_mse_batch = self.metric(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC)
-
-            true_mse[k:k + x.shape[0]] = true_mse_batch
-            estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch
-            k += x.shape[0]
+                true_mse[k:k + x.shape[0]] = true_mse_batch
+                estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch
+                k += x.shape[0]
 
         self.true_mse = true_mse
         self.estimated_mse = estimated_mse
