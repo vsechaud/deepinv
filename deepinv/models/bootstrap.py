@@ -33,7 +33,7 @@ class Bootstrap(Reconstructor):
         If ``T.n_trans`` is different from ``MC``, it will be overridden to match ``MC``.
     """
 
-    def __init__(self, img_size, model,  physics, T=Identity(), MC=100, **kwargs):
+    def __init__(self, img_size, model, physics, T=Identity(), MC=100, **kwargs):
         super(Bootstrap, self).__init__(**kwargs)
         self.model = model
         self.T = T
@@ -44,7 +44,8 @@ class Bootstrap(Reconstructor):
         self.img_size = img_size
         self.physics = physics
 
-    def forward(self, y):
+
+    def forward(self, y, physics, **kwargs):
         """
         Generate :math:`MC` bootstrap reconstructions from the measurement :math:`y`.
 
