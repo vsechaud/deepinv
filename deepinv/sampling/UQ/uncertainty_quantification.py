@@ -1,29 +1,31 @@
 from torch import nn
+import torch
+import tqdm
+import deepinv as dinv
+from deepinv import Reconstructor
 
 
-class UQ(nn.modules):
-    """
-    Abstract base class for uncertainty quantification methods.
-    """
+class Bootstrap(Reconstructor):
+    def __init__(self, model, img_size, T=dinv.transform.Identity(),  method='parametric', MC=100, **kwargs):
+        super(Bootstrap, self).__init__(**kwargs)
+        self.model = model
+        self.method = method
+        self.T = T
+        self.MC = MC
+        if T.n_trans != MC:
+            print(f"Warning: T.n_trans ({T.n_trans}) != MC ({MC}), n_trans set to MC")
+        T.n_trans = MC
+        self.img_size = img_size
+        
 
-    def __init__(self, **kwargs):
-        super(UQ, self).__init__()
-        self.name = self.__class__.__name__
+    def forward(self, y, physics):
 
-    def sample(self, **kwargs):
-        raise NotImplementedError("Subclasses must implement this method.")
+        x_net = self.model(y, physics)
+        params = self.T.get_params(x_net)
+        bootstrap_measurements = physics(self.T(x_net, **params).reshape(-1, *self.img_size))
+        samples = self.model(bootstrap_measurements, physics)
+        samples = self.T.inverse(samples, **params).reshape(-1, self.MC, *self.img_size)
+        
+        return samples
 
-    def coverage(self, **kwargs):
-        raise NotImplementedError("Subclasses must implement this method.")
-
-
-class Bootsrap(UQ):
-    def __init__(self, **kwargs):
-        super(Bootsrap, self).__init__(**kwargs)
-
-    def sample(self, y, model, MC, statistics):
-        pass
-
-    def coverage(self, alpha, statstics):
-        pass
 
