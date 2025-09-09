@@ -4,7 +4,7 @@ from tqdm import tqdm
 from deepinv.loss.metric import MSE
 import matplotlib.pyplot as plt
 
-class UQ(nn.modules):
+class UQ(nn.Module):
     r"""
         Uncertainty quantification (UQ) class for evaluating reconstruction models.
 

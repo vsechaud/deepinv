@@ -33,7 +33,7 @@ class Bootstrap(Reconstructor):
         If ``T.n_trans`` is different from ``MC``, it will be overridden to match ``MC``.
     """
 
-    def __init__(self, model, img_size, T=Identity(), MC=100, **kwargs):
+    def __init__(self, img_size, model,  physics, T=Identity(), MC=100, **kwargs):
         super(Bootstrap, self).__init__(**kwargs)
         self.model = model
         self.T = T
@@ -42,8 +42,9 @@ class Bootstrap(Reconstructor):
             print(f"Warning: T.n_trans ({T.n_trans}) != MC ({MC}), n_trans set to MC")
         T.n_trans = MC
         self.img_size = img_size
+        self.physics = physics
 
-    def forward(self, y, physics):
+    def forward(self, y):
         """
         Generate :math:`MC` bootstrap reconstructions from the measurement :math:`y`.
 
@@ -51,10 +52,10 @@ class Bootstrap(Reconstructor):
         :param deepinv.physics.Physics physics: forward operator.
         :return: (:class:`torch.Tensor`): A tensor of shape ``(batch_size, MC, *img_size)`` containing the bootstrap samples.
         """
-        x_net = self.model(y, physics)
+        x_net = self.model(y, self.physics)
         params = self.T.get_params(x_net)
-        bootstrap_measurements = physics(self.T(x_net, **params).reshape(-1, *self.img_size))
-        samples = self.model(bootstrap_measurements, physics)
+        bootstrap_measurements = self.physics(self.T(x_net, **params).reshape(-1, *self.img_size))
+        samples = self.model(bootstrap_measurements, self.physics)
         samples = self.T.inverse(samples, **params).reshape(-1, self.MC, *self.img_size)
 
         return samples
