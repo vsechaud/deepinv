@@ -1,3 +1,4 @@
+import torch.nn
 from torch import nn
 import numpy as np
 from tqdm import tqdm
@@ -23,7 +24,7 @@ class UQ(nn.Module):
         dataloader : torch.utils.data.DataLoader
             Dataloader providing ground-truth images and measurements.
         model : nn.Module
-            Reconstruction model that outputs ``MC`` stochastic reconstructions.
+            Reconstruction model that outputs ``MC`` stochastic reconstructions for each images.
             Must have an attribute ``MC`` (number of samples).
         metric : callable
             Metric function to evaluate reconstructions (e.g., :class:`deepinv.loss.metric.MSE`).
@@ -38,13 +39,14 @@ class UQ(nn.Module):
             Array of estimated MSE values, shape ``(N, MC)``.
 
         """
-    def __init__(self, img_size, dataloader, model, metric, **kwargs):
+    def __init__(self, img_size, dataloader, model, metric=MSE(), **kwargs):
         super(UQ, self).__init__(**kwargs)
         self.dataloader = dataloader
         self.model = model
         self.MC = model.MC
         self.img_size = img_size
         self.metric = metric
+        self.device = model.device
 
     def compute_estimateMSE(self):
         r"""
@@ -68,7 +70,9 @@ class UQ(nn.Module):
         k = 0
 
         for x, y in tqdm(self.dataloader, disable=True):
-            x_net = self.model(y)
+            x = x.to(self.device)
+            y = y.to(self.device)
+            x_net = self.model(y, physics=None)
             B = x.shape[0]
             xhat = x_net.mean(1)
             true_mse_batch = MSE()(x, xhat)
