@@ -438,7 +438,7 @@ class Identity(Transform):
     """
 
     def _get_params(self, *args):
-        return {}
+        return {"_dummy": torch.tensor([float("nan")] * self.n_trans)}
 
-    def _transform(self, x, **params):
-        return x
+    def _transform(self, x, *, _dummy, **params):
+        return x.repeat((len(_dummy), *([1] * (x.ndim - 1))))
