@@ -34,7 +34,7 @@ class Bootstrap(Reconstructor):
     """
 
 
-    def __init__(self, img_size, model, physics, T=Identity(), MC=100, device='cpu'):
+    def __init__(self, img_size, model, physics, T=Identity(), MC=100, device='cpu', with_inverse=True):
         super(Bootstrap, self).__init__()
         self.model = model
         self.T = T
@@ -45,6 +45,7 @@ class Bootstrap(Reconstructor):
         self.img_size = img_size
         self.physics = physics
         self.device = device  
+        self.with_inverse = with_inverse
 
 
     def forward(self, y, physics, **kwargs):
@@ -55,10 +56,26 @@ class Bootstrap(Reconstructor):
         :param deepinv.physics.Physics physics: forward operator.
         :return: (:class:`torch.Tensor`): A tensor of shape ``(batch_size, MC, *img_size)`` containing the bootstrap samples.
         """
+
+        print("y.shape", y.shape)
         x_net = self.model(y, self.physics)
         params = self.T.get_params(x_net)
-        bootstrap_measurements = self.physics(self.T(x_net, **params).reshape(-1, *self.img_size))
+        self.realized_samples = self.T(x_net, **params)
+        print("self.realized_samples.shape", self.realized_samples.shape)
+        bootstrap_measurements = self.physics(self.realized_samples.reshape(-1, *self.img_size))
+        print("bootstrap_measurements.shape", bootstrap_measurements.shape)
         samples = self.model(bootstrap_measurements, self.physics)
-        samples = self.T.inverse(samples, **params).reshape(-1, self.MC, *self.img_size)
+        if self.with_inverse:
+            samples = self.T.inverse(samples, **params).reshape(-1, self.MC, *self.img_size)
 
+        
+        print("samples.shape", samples.shape)
         return samples
+    
+    def get_realized_samples(self):
+        r"""
+        Get the realized samples after a forward pass.
+
+        :return: (:class:`torch.Tensor`): A tensor of shape ``(batch_size, MC, *img_size)`` containing the realized samples.
+        """
+        return self.realized_samples
