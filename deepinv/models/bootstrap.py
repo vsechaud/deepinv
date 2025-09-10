@@ -22,6 +22,9 @@ class Bootstrap(Reconstructor):
         T : deepinv.transform.Transform, optional
             Stochastic transformation applied to the reconstruction. Default is
             :class:`deepinv.transform.Identity`.
+        physics : deepinv.physics.Physics
+            Forward operator modeling the measurement process.
+            If you want to do parametric bootstrap, make sure your physics contains stochasticity.
         MC : int, optional
             Number of Monte Carlo samples to generate. Default: ``100``.
         **kwargs : dict, optional
@@ -68,7 +71,6 @@ class Bootstrap(Reconstructor):
                 samples.append(self.model(bootstrap_measurements, self.physics))
                 if self.with_inverse:
                     samples[k] = self.T.inverse(samples[k], batchwise=False, **params)
-
         samples = torch.stack(samples, dim=1).reshape(-1, self.MC, *self.img_size)
         self.realized_samples = torch.stack(realized_samples, dim=1).reshape(-1, self.MC, *self.img_size)
 
