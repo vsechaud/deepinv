@@ -67,19 +67,19 @@ class UQ(nn.Module):
         true_mse = np.zeros(N)
         estimated_mse = np.zeros((N, self.MC))
         k = 0
-        with torch.no_grad():
-            for x, y in tqdm(self.dataloader, disable=True):
-                x = x.to(self.device)
-                y = y.to(self.device)
-                x_net = self.model(y, physics=None)
-                B = x.shape[0]
-                xhat = x_net.mean(1)
-                true_mse_batch = self.metric(x, xhat).cpu()
-                estimated_mse_batch = self.metric(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC).cpu()
 
-                true_mse[k:k + x.shape[0]] = true_mse_batch
-                estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch
-                k += x.shape[0]
+        for x, y in tqdm(self.dataloader, disable=True):
+            x = x.to(self.device)
+            y = y.to(self.device)
+            x_net = self.model(y, physics=None)
+            B = x.shape[0]
+            xhat = x_net.mean(1)
+            true_mse_batch = self.metric(x, xhat).cpu()
+            estimated_mse_batch = self.metric(x.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC).cpu()
+
+            true_mse[k:k + x.shape[0]] = true_mse_batch
+            estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch
+            k += x.shape[0]
 
         self.true_mse = true_mse
         self.estimated_mse = estimated_mse
@@ -108,12 +108,13 @@ class UQ(nn.Module):
             estimated_mse = self.estimated_mse
         N = len(true_mse)
         percentiles = np.linspace(0.1, .99, 100)
-        distance = np.sort(estimated_mse, axis=0)
+        distance = np.sort(estimated_mse, axis=1)
+        print(distance.shape)
         empirical_coverage = np.zeros(len(percentiles))
         for j in range(len(percentiles)):
             success = 0
             for i in range(N):
-                if true_mse[i] < distance[int(distance.shape[0] * percentiles[j]), i]:
+                if true_mse[i] < distance[i, int(distance.shape[1] * percentiles[j])]:
                     success += 1
 
             empirical_coverage[j] = success / N

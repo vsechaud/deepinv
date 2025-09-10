@@ -4,8 +4,9 @@ import torch
 from torch.utils.data import DataLoader
 
 import deepinv as dinv
-
-
+from deepinv.sampling.uncertainty_quantification import UQ
+from deepinv.models.bootstrap import Bootstrap
+from deepinv.utils import plot
 
 
 torch.manual_seed(0)
@@ -19,7 +20,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((256, 256)),  # converts PIL Image to torch.Tensor
 ])
-print("1")
+
 # train_dataset = dinv.datasets.DIV2K(root="./data/DIV2K", download=False, mode='train', transform=transform)
 test_dataset = dinv.datasets.DIV2K(root="./data/DIV2K", download=False, mode='val', transform=transform)
 
@@ -34,7 +35,7 @@ physics = dinv.physics.Inpainting(
 )
 
 num_workers = 4 if torch.cuda.is_available() else 0
-print("2")
+
 deepinv_datasets_path = dinv.datasets.generate_dataset(
     train_dataset=None,
     test_dataset=test_dataset,
@@ -53,7 +54,7 @@ deepinv_datasets_path = dinv.datasets.generate_dataset(
 
 # train_dataset = dinv.datasets.HDF5Dataset(path=deepinv_datasets_path, train=True)
 test_dataset = dinv.datasets.HDF5Dataset(path=deepinv_datasets_path, train=False)
-
+# test_dataset = torch.utils.data.Subset(test_dataset, range(10))
 dataloader = DataLoader(test_dataset, batch_size=4, shuffle=False, num_workers=num_workers)
 
 
@@ -62,13 +63,23 @@ model = dinv.models.RAM(in_channels=(1, 2, 3), device=device, pretrained=True)
 model.eval()
 # %%
 
-from deepinv.sampling.uncertainty_quantification import UQ
-from deepinv.models.bootstrap import Bootstrap
+x,y = next(iter(dataloader))
+x = x.to(device)
+y = y.to(device)
+with torch.no_grad():
+    for k in range(1):
+        x_net = model(y, physics=physics)
 
-bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Shift(), MC=2, device=device)
+plot([x,y, x_net])
 
 # %%
-print("3")
+
+
+
+
+# %%
+bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Shift(), MC=100, device=device)
+
 uq = UQ(img_size=img_size, dataloader=dataloader, model=bootstrap_model)
-uq.compute_estimateMSE()
-uq.plot_coverage()
+# true, esti = uq.compute_estimateMSE()
+# uq.plot_coverage()
