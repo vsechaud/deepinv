@@ -56,6 +56,10 @@ LINEAR_OPERATORS = [
     "pansharpen_circular",
 ]  # this is a reduced list of linear operators for testing restoration models.
 
+
+BOOTSTRAP = [
+    "bootstrap",
+]
 CHANNELS = [
     1,
     2,
@@ -1191,3 +1195,41 @@ def test_client_mocked(return_metadata):
     with patch("deepinv.models.client.requests.post", return_value=resp) as post:
         with pytest.raises(ValueError, match="output"):
             _ = model(y)
+
+
+@pytest.mark.parametrize("bootstrap", BOOTSTRAP)
+def test_bootstrap(device):
+    from deepinv.models.bootstrap import Bootstrap
+    y = torch.randn((4, 3, 20, 20)).to(device)
+    img_size = y.shape[1:]
+    physics = dinv.physics.Inpainting(
+    img_size=img_size,
+    mask=0.5,
+    device=device,
+    noise_model=dinv.physics.GaussianNoise(sigma=0.05)
+    )
+
+    MC = 10
+    backbone_net = dinv.models.MedianFilter(kernel_size=3).to(device)
+    model = dinv.models.ArtifactRemoval(backbone_net)
+
+
+    bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Identity(n_trans=MC), MC=MC, device=device)
+    output = bootstrap_model(y, physics)
+
+    assert output.shape == (y.shape[0], MC, *img_size), f"Output shape {output.shape} does not match expected shape {(y.shape[0], MC, *img_size)} for Identity transform"  
+
+    bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Shift(n_trans=MC), MC=MC, device=device)
+    output = bootstrap_model(y, physics)
+
+    assert output.shape == (y.shape[0], MC, *img_size), f"Output shape {output.shape} does not match expected shape {(y.shape[0], MC, *img_size) } for Shift transform"  
+    
+    bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Rotate(n_trans=MC), MC=MC, device=device)
+    output = bootstrap_model(y, physics)
+
+    assert output.shape == (y.shape[0], MC, *img_size), f"Output shape {output.shape} does not match expected shape {(y.shape[0], MC, *img_size)} for Rotate transform"  
+
+    bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Reflect(n_trans=MC), MC=MC, device=device)
+    output = bootstrap_model(y, physics)
+
+    assert output.shape == (y.shape[0], MC, *img_size), f"Output shape {output.shape} does not match expected shape {(y.shape[0], MC, *img_size)} for Reflect transform"  
