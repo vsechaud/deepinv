@@ -22,6 +22,9 @@ class Bootstrap(Reconstructor):
         T : deepinv.transform.Transform, optional
             Stochastic transformation applied to the reconstruction. Default is
             :class:`deepinv.transform.Identity`.
+        physics : deepinv.physics.Physics
+            Forward operator modeling the measurement process.
+            If you want to do parametric bootstrap, make sure your physics contains stochasticity.
         MC : int, optional
             Number of Monte Carlo samples to generate. Default: ``100``.
         **kwargs : dict, optional
@@ -57,19 +60,13 @@ class Bootstrap(Reconstructor):
         :return: (:class:`torch.Tensor`): A tensor of shape ``(batch_size, MC, *img_size)`` containing the bootstrap samples.
         """
 
-        print("y.shape", y.shape)
         x_net = self.model(y, self.physics)
         params = self.T.get_params(x_net)
         self.realized_samples = self.T(x_net, **params)
-        print("self.realized_samples.shape", self.realized_samples.shape)
-        bootstrap_measurements = self.physics(self.realized_samples.reshape(-1, *self.img_size))
-        print("bootstrap_measurements.shape", bootstrap_measurements.shape)
+        bootstrap_measurements = self.physics(self.realized_samples)
         samples = self.model(bootstrap_measurements, self.physics)
         if self.with_inverse:
-            samples = self.T.inverse(samples, **params).reshape(-1, self.MC, *self.img_size)
-
-        
-        print("samples.shape", samples.shape)
+            samples = self.T.inverse(samples, batchwise=False, **params).reshape(-1, self.MC, *self.img_size)
         return samples
     
     def get_realized_samples(self):
