@@ -18,13 +18,13 @@ device = dinv.utils.get_freer_gpu() if torch.cuda.is_available() else "cpu"
 from torchvision import transforms
 transform = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Resize((256, 256)),  # converts PIL Image to torch.Tensor
+    transforms.Resize((128, 128)),  # converts PIL Image to torch.Tensor
 ])
 
 # train_dataset = dinv.datasets.DIV2K(root="./data/DIV2K", download=False, mode='train', transform=transform)
 test_dataset = dinv.datasets.DIV2K(root="./data/DIV2K", download=False, mode='val', transform=transform)
 
-img_size = (3, 256, 256)
+img_size = (3, 128, 128)
 sigma = .05
 
 physics = dinv.physics.Inpainting(
@@ -47,15 +47,15 @@ deepinv_datasets_path = dinv.datasets.generate_dataset(
     batch_size=100,
     num_workers=num_workers,
     dataset_filename="dataset",
-    overwrite_existing=False,
+    overwrite_existing=True,
 )
 
 # deepinv_datasets_path = f"ckpts/inpainting/DIV2K_oversampling_ratio={config['oversampling_ratio']}_n_images=800_/dataset0.h5"
 
 # train_dataset = dinv.datasets.HDF5Dataset(path=deepinv_datasets_path, train=True)
 test_dataset = dinv.datasets.HDF5Dataset(path=deepinv_datasets_path, train=False)
-# test_dataset = torch.utils.data.Subset(test_dataset, range(10))
-dataloader = DataLoader(test_dataset, batch_size=4, shuffle=False, num_workers=num_workers)
+test_dataset = torch.utils.data.Subset(test_dataset, range(60))
+dataloader = DataLoader(test_dataset, batch_size=20, shuffle=False, num_workers=num_workers)
 
 
 
@@ -78,8 +78,10 @@ plot([x,y, x_net])
 
 
 # %%
-bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Shift(), MC=100, device=device)
+bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Shift(), MC=50, device=device)
 
+xhat = bootstrap_model(y, physics)
+plot([x, y, x_net, xhat.mean(dim=1), xhat[:,4]])
 uq = UQ(img_size=img_size, dataloader=dataloader, model=bootstrap_model)
 # true, esti = uq.compute_estimateMSE()
 # uq.plot_coverage()
