@@ -47,7 +47,7 @@ deepinv_datasets_path = dinv.datasets.generate_dataset(
     batch_size=100,
     num_workers=num_workers,
     dataset_filename="dataset",
-    overwrite_existing=True,
+    overwrite_existing=False,
 )
 
 # deepinv_datasets_path = f"ckpts/inpainting/DIV2K_oversampling_ratio={config['oversampling_ratio']}_n_images=800_/dataset0.h5"
@@ -67,21 +67,14 @@ x,y = next(iter(dataloader))
 x = x.to(device)
 y = y.to(device)
 with torch.no_grad():
-    for k in range(1):
-        x_net = model(y, physics=physics)
-
-plot([x,y, x_net])
-
-# %%
-
-
+    x_net = model(y, physics=physics)
 
 
 # %%
 bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=dinv.transform.Shift(), MC=50, device=device)
 
 xhat = bootstrap_model(y, physics)
-plot([x, y, x_net, xhat.mean(dim=1), xhat[:,4]])
+plot([x, y, x_net, xhat.mean(dim=1), xhat[:,2]])
 uq = UQ(img_size=img_size, dataloader=dataloader, model=bootstrap_model)
 # true, esti = uq.compute_estimateMSE()
 # uq.plot_coverage()
