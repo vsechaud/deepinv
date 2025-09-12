@@ -37,6 +37,7 @@ class DnCNN(Denoiser):
         depth=20,
         bias=True,
         nf=64,
+        padding_mode='zeros',
         pretrained="download",
         device="cpu",
     ):
@@ -45,16 +46,16 @@ class DnCNN(Denoiser):
         self.depth = depth
 
         self.in_conv = nn.Conv2d(
-            in_channels, nf, kernel_size=3, stride=1, padding=1, bias=bias
+            in_channels, nf, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode=padding_mode
         )
         self.conv_list = nn.ModuleList(
             [
-                nn.Conv2d(nf, nf, kernel_size=3, stride=1, padding=1, bias=bias)
+                nn.Conv2d(nf, nf, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode=padding_mode)
                 for _ in range(self.depth - 2)
             ]
         )
         self.out_conv = nn.Conv2d(
-            nf, out_channels, kernel_size=3, stride=1, padding=1, bias=bias
+            nf, out_channels, kernel_size=3, stride=1, padding=1, bias=bias, padding_mode=padding_mode
         )
 
         self.nl_list = nn.ModuleList([nn.ReLU() for _ in range(self.depth - 1)])
