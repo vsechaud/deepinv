@@ -72,16 +72,17 @@ test_dataloader = DataLoader(test_dataset, batch_size=20, shuffle=False, num_wor
 backbone_net = dinv.models.DnCNN(in_channels=3, out_channels=3, depth=20, bias=True, nf=64, padding_mode='zeros', device=device)
 model = dinv.models.ArtifactRemoval(backbone_net=backbone_net, mode="adjoint", device=device)
 trainer = dinv.Trainer(
-    epochs=5,
+    epochs=50,
     model=model,
     physics=physics,
     losses=dinv.loss.SupLoss(),
     device=device,
     train_dataloader=train_dataloader,
-    eval_dataloader=test_dataloader,
+    # eval_dataloader=test_dataloader,
+    # eval_interval=15,
     optimizer=torch.optim.Adam(model.parameters(), lr=5e-4, weight_decay=1e-8),
     save_path=None,
-    eval_interval=5,
+
 )
 model = trainer.train()
 
@@ -99,5 +100,5 @@ bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=d
 xhat = bootstrap_model(y, physics)
 plot([x, y, x_net, xhat.mean(dim=1), xhat[:,0], xhat[:,1]])
 uq = UQ(img_size=img_size, dataloader=test_dataloader, model=bootstrap_model)
-# true, esti = uq.compute_estimateMSE()
-# uq.plot_coverage()
+true, esti = uq.compute_estimateMSE()
+uq.plot_coverage()

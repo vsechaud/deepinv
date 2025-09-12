@@ -109,7 +109,6 @@ class UQ(nn.Module):
         N = len(true_mse)
         percentiles = np.linspace(0.1, .99, 100)
         distance = np.sort(estimated_mse, axis=1)
-        print(distance.shape)
         empirical_coverage = np.zeros(len(percentiles))
         for j in range(len(percentiles)):
             success = 0
@@ -119,7 +118,7 @@ class UQ(nn.Module):
 
             empirical_coverage[j] = success / N
 
-        empirical_coverage[-1] = 1.
+        # empirical_coverage[-1] = 1.
         plt.figure()
         plt.plot(percentiles, empirical_coverage)
         plt.plot(percentiles, percentiles)
