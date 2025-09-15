@@ -71,11 +71,11 @@ class UQ(nn.Module):
         for x, y in tqdm(self.dataloader, disable=True):
             x = x.to(self.device)
             y = y.to(self.device)
-            x_net = self.model(y, physics=None)
+            x_hat = self.model(y, physics=None)
             B = x.shape[0]
-            xhat = x_net.mean(1)
-            true_mse_batch = self.metric(x, xhat).cpu()
-            estimated_mse_batch = self.metric(xhat.repeat_interleave(self.MC, dim=0), x_net.reshape(-1, *self.img_size)).reshape(B, self.MC).cpu() #faux
+            x_net = self.model.get_x_net()
+            true_mse_batch = self.metric(x, x_net).cpu()
+            estimated_mse_batch = self.metric(x_net.repeat_interleave(self.MC, dim=0), x_hat.reshape(-1, *self.img_size)).reshape(B, self.MC).cpu() #faux
 
             true_mse[k:k + x.shape[0]] = true_mse_batch
             estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch

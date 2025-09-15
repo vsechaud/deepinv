@@ -63,8 +63,9 @@ class Bootstrap(Reconstructor):
         samples = []
         self.model.eval()
         with torch.no_grad():
+            x_net = self.model(y, self.physics)
+            self.x_net = x_net.clone()
             for k in range(self.MC):
-                x_net = self.model(y, self.physics)
                 params = self.T.get_params(x_net)
                 realized_samples.append(self.T(x_net, **params))
                 bootstrap_measurements = self.physics(realized_samples[k])
@@ -75,6 +76,9 @@ class Bootstrap(Reconstructor):
         self.realized_samples = torch.stack(realized_samples, dim=1).reshape(-1, self.MC, *self.img_size)
 
         return samples
+
+    def get_x_net(self):
+        return  self.x_net
     
     def get_realized_samples(self):
         r"""
