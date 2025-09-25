@@ -128,11 +128,11 @@ class EquivariantReconstructor(Reconstructor):
             if random:
                 self.transform = Rotate(
                     n_trans=1, multiples=90, positive=True
-                ) * Reflect(n_trans=1, dims=[-1])
+                ) * Reflect(n_trans=1, dim=[-1])
             else:
                 self.transform = Rotate(
                     n_trans=4, multiples=90, positive=True
-                ) * Reflect(n_trans=2, dims=[-1])
+                ) * Reflect(n_trans=2, dim=[-1])
 
     def forward(self, y, physics, *reconstructor_args, **reconstructor_kwargs):
         r"""

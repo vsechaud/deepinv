@@ -15,6 +15,7 @@ from deepinv.physics.generator import PhysicsGenerator
 from deepinv.utils.plotting import prepare_images
 from torchvision.utils import save_image
 import inspect
+import time
 
 
 @dataclass
@@ -339,10 +340,41 @@ class Trainer:
             # NOTE: Two separate training should not write to the same
             # directory. For this reason, we make sure the directory does not
             # already exist.
-            dir_path = f"{self.save_path}/{get_timestamp()}"
-            # Acquire the output directory (might fail with an exception)
-            os.makedirs(dir_path, exist_ok=False)
+            # NOTE: By default, we try acquiring the directory with a name
+            # corresponding to the current timestamp. In case it already
+            # exists, which might happen if multiple runs are launched at the
+            # same time, we wait for a bit and try again with the new
+            # timestamp. If after a certain number of attempts no directory
+            # could successfully be acquired, we raise an error.
+            acquired = False
+            max_attempts = 100
+            attempts = 0
+            while not acquired and attempts < max_attempts:
+                attempts += 1
+                dir_path = f"{self.save_path}/{get_timestamp()}"
+                # Acquire the output directory (might fail with an exception)
+                try:
+                    os.makedirs(dir_path, exist_ok=False)
+                    acquired = True
+                # Intercept errors due to the directory already existing
+                except FileExistsError:
+                    pass
+                # NOTE: We make the choice of actually waiting and using the
+                # real timestamp for the sake of simplicity and correctness
+                # (i.e. we want the directory name to actually reflect the real
+                # timestamp at which the training started). This has the
+                # unfortunate consequence of making parallel runs slower to
+                # start (up to N - 1 seconds for N runs). The other option
+                # would be to compute the next timestamp manually and try it
+                # right away.
+                time.sleep(1)
+            if not acquired:
+                raise RuntimeError(
+                    f"Could not acquire save path {dir_path} after {max_attempts} attempts."
+                )
             self.save_path = dir_path
+            if self.verbose:
+                print(f"Save path for training: {self.save_path}")
         else:
             self.save_path = None
 
@@ -884,7 +916,7 @@ class Trainer:
                     Path(img_name).mkdir(parents=True, exist_ok=True)
                     save_image(img[i], img_name + f"{self.img_counter + i}.png")
 
-                self.img_counter += len(imgs[0])
+            self.img_counter += len(imgs[0])
 
         if self.conv_metrics is not None:
             plot_curves(
