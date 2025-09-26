@@ -83,21 +83,8 @@ model = trainer.train()
 # We use the Bootstrap model to generate MC samples, compute the true and estimated MSEs,
 # and plot the empirical coverage of the uncertainty intervals.
 
-
-x,y = next(iter(test_dataloader))
-x = x.to(device)
-y = y.to(device)
-
-
 T = dinv.transform.Shift(shift_max=2/28)
-
 bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=T, MC=100, device=device)
-
-xhat = bootstrap_model(y, physics)
-x_net = bootstrap_model.get_x_net()
-realized_samples = bootstrap_model.get_realized_samples()
-# plot([x, x_net, xhat.mean(dim=1), realized_samples[:, 1], xhat[:,0], xhat[:,2]])
 uq = UQ(img_size=img_size, dataloader=test_dataloader, model=bootstrap_model)
-true, esti = uq.compute_estimateMSE()
 uq.plot_coverage()
 
