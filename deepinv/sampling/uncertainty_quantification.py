@@ -5,39 +5,41 @@ from tqdm import tqdm
 from deepinv.loss.metric import MSE
 import matplotlib.pyplot as plt
 
+
 class UQ(nn.Module):
     r"""
-        Uncertainty quantification (UQ) class for evaluating reconstruction models.
+    Uncertainty quantification (UQ) class for evaluating reconstruction models.
 
-        This class estimates and evaluates the uncertainty of a reconstruction model
-        (typically a bootstrap-based model) by comparing the true mean squared error (MSE)
-        with estimated MSEs computed from multiple Monte Carlo (MC) samples.
+    This class estimates and evaluates the uncertainty of a reconstruction model
+    (typically a bootstrap-based model) by comparing the true mean squared error (MSE)
+    with estimated MSEs computed from multiple Monte Carlo (MC) samples.
 
-        It provides methods to compute error estimates and to visualize the empirical
-        coverage of uncertainty intervals.
+    It provides methods to compute error estimates and to visualize the empirical
+    coverage of uncertainty intervals.
 
-        Parameters
-        ----------
-        img_size : tuple of int
-            Size of the reconstructed image.
-        dataloader : torch.utils.data.DataLoader
-            Dataloader providing ground-truth images and measurements.
-        model : nn.Module
-            Reconstruction model that outputs ``MC`` stochastic reconstructions for each images.
-            Must have an attribute ``MC`` (number of samples).
-        metric : callable
-            Metric function to evaluate reconstructions (e.g., :class:`deepinv.loss.metric.MSE`).
-        **kwargs : dict, optional
-            Additional arguments passed to :class:`torch.nn.Module`.
+    Parameters
+    ----------
+    img_size : tuple of int
+        Size of the reconstructed image.
+    dataloader : torch.utils.data.DataLoader
+        Dataloader providing ground-truth images and measurements.
+    model : nn.Module
+        Reconstruction model that outputs ``MC`` stochastic reconstructions for each images.
+        Must have an attribute ``MC`` (number of samples).
+    metric : callable
+        Metric function to evaluate reconstructions (e.g., :class:`deepinv.loss.metric.MSE`).
+    **kwargs : dict, optional
+        Additional arguments passed to :class:`torch.nn.Module`.
 
-        Attributes
-        ----------
-        true_mse : np.ndarray
-            Array of ground-truth MSE values, shape ``(N,)`` with ``N`` number of samples.
-        estimated_mse : np.ndarray
-            Array of estimated MSE values, shape ``(N, MC)``.
+    Attributes
+    ----------
+    true_mse : np.ndarray
+        Array of ground-truth MSE values, shape ``(N,)`` with ``N`` number of samples.
+    estimated_mse : np.ndarray
+        Array of estimated MSE values, shape ``(N, MC)``.
 
-        """
+    """
+
     def __init__(self, img_size, dataloader, model, metric=MSE(), **kwargs):
         super(UQ, self).__init__(**kwargs)
         self.dataloader = dataloader
@@ -75,10 +77,17 @@ class UQ(nn.Module):
             B = x.shape[0]
             x_net = self.model.get_x_net()
             true_mse_batch = self.metric(x, x_net).cpu()
-            estimated_mse_batch = self.metric(x_net.repeat_interleave(self.MC, dim=0), x_hat.reshape(-1, *self.img_size)).reshape(B, self.MC).cpu() #faux
+            estimated_mse_batch = (
+                self.metric(
+                    x_net.repeat_interleave(self.MC, dim=0),
+                    x_hat.reshape(-1, *self.img_size),
+                )
+                .reshape(B, self.MC)
+                .cpu()
+            )  # faux
 
-            true_mse[k:k + x.shape[0]] = true_mse_batch
-            estimated_mse[k:k + x.shape[0], :] = estimated_mse_batch
+            true_mse[k : k + x.shape[0]] = true_mse_batch
+            estimated_mse[k : k + x.shape[0], :] = estimated_mse_batch
             k += x.shape[0]
 
         self.true_mse = true_mse
@@ -101,7 +110,7 @@ class UQ(nn.Module):
         Array of shape (len(percentiles),) representing the empirical coverage
         at each requested percentile.
         """
-        if not hasattr(self, 'estimated_mse'):
+        if not hasattr(self, "estimated_mse"):
             _, estimated_mse = self.compute_estimateMSE()
         else:
             estimated_mse = self.estimated_mse
@@ -123,7 +132,7 @@ class UQ(nn.Module):
         None
             Displays a matplotlib figure.
         """
-        if not hasattr(self, 'true_mse') or not hasattr(self, 'estimated_mse'):
+        if not hasattr(self, "true_mse") or not hasattr(self, "estimated_mse"):
             true_mse, _ = self.compute_estimateMSE()
         else:
             true_mse = self.true_mse
@@ -139,10 +148,12 @@ class UQ(nn.Module):
 
             empirical_coverage[j] = 100 * success / N
 
-        empirical_coverage[-1] = 1.  #Because to have a 100% we can just take a ball of infinite radius.
+        empirical_coverage[-1] = (
+            1.0  # Because to have a 100% we can just take a ball of infinite radius.
+        )
         plt.figure()
         plt.plot(percentiles, empirical_coverage)
         plt.plot(percentiles, percentiles)
-        plt.xlabel('Confidence level')
-        plt.ylabel('Empirical coverage')
+        plt.xlabel("Confidence level")
+        plt.ylabel("Empirical coverage")
         plt.show()

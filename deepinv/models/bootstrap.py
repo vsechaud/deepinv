@@ -1,6 +1,8 @@
 from .base import Reconstructor
 from deepinv.transform import Identity
 import torch
+
+
 class Bootstrap(Reconstructor):
     r"""
        Bootstrap reconstruction method for uncertainty quantification.
@@ -36,8 +38,16 @@ class Bootstrap(Reconstructor):
         If ``T.n_trans`` is different from ``MC``, it will be overridden to match ``MC``.
     """
 
-
-    def __init__(self, img_size, model, physics, T=Identity(), MC=100, device='cpu', with_inverse=True):
+    def __init__(
+        self,
+        img_size,
+        model,
+        physics,
+        T=Identity(),
+        MC=100,
+        device="cpu",
+        with_inverse=True,
+    ):
         super(Bootstrap, self).__init__()
         self.model = model
         self.T = T
@@ -47,7 +57,7 @@ class Bootstrap(Reconstructor):
             T.n_trans = 1
         self.img_size = img_size
         self.physics = physics
-        self.device = device  
+        self.device = device
         self.with_inverse = with_inverse
 
     def forward(self, y, physics, **kwargs):
@@ -72,13 +82,15 @@ class Bootstrap(Reconstructor):
                 if self.with_inverse:
                     samples[k] = self.T.inverse(samples[k], batchwise=False, **params)
         samples = torch.stack(samples, dim=1).reshape(-1, self.MC, *self.img_size)
-        self.realized_samples = torch.stack(realized_samples, dim=1).reshape(-1, self.MC, *self.img_size)
+        self.realized_samples = torch.stack(realized_samples, dim=1).reshape(
+            -1, self.MC, *self.img_size
+        )
 
         return samples
 
     def get_x_net(self):
-        return  self.x_net
-    
+        return self.x_net
+
     def get_realized_samples(self):
         r"""
         Get the realized samples after a forward pass.
