@@ -1,110 +1,103 @@
 # %%
-
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torchvision import transforms
+from torchvision import datasets
 
 import deepinv as dinv
 from deepinv.sampling.uncertainty_quantification import UQ
 from deepinv.models.bootstrap import Bootstrap
 from deepinv.utils import plot
-from torchvision.transforms import InterpolationMode
-from torchvision import datasets
+
+from pathlib import Path
 
 torch.manual_seed(0)
 device = dinv.utils.get_freer_gpu() if torch.cuda.is_available() else "cpu"
-from torch import nn
 
 
+# %% Load base image datasets.
+# In this example, we use the MNIST dataset for training and testing.
+train_dataset = datasets.MNIST(root="./data/MNIST", download=False, train=True, transform=transforms.ToTensor())
+test_dataset = datasets.MNIST(root="./data/MNIST", download=False, train=False, transform=transforms.ToTensor())
 
-# %%
-
+# %% Define physics
+# We use A\inR_mxn a random Gaussian matrix as the forward operator, m=256 and n=28*28.
 img_size = (1, 28, 28)
 sigma = .05
-
-# physics = dinv.physics.Inpainting(
-#     img_size=img_size,
-#     mask=0.5,
-#     device=device,
-#     noise_model=dinv.physics.GaussianNoise(sigma=sigma)
-# )
-
 physics = dinv.physics.CompressedSensing(m=256, img_size=img_size, device=device, noise_model=dinv.physics.GaussianNoise(sigma=sigma))
-
 
 num_workers = 4 if torch.cuda.is_available() else 0
 
-from torchvision import transforms
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    # transforms.Resize((128, 128)),  # converts PIL Image to torch.Tensor
-])
-
-train_dataset = datasets.MNIST(root="./data/MNIST", download=True, train=True, transform=transform)
-test_dataset = datasets.MNIST(root="./data/MNIST", download=True, train=False, transform=transform)
-
-# train_dataset = dinv.datasets.DIV2K(root="./data/DIV2K", download=False, mode='train', transform=transform)
-# test_dataset = dinv.datasets.DIV2K(root="./data/DIV2K", download=False, mode='val', transform=transform)
+# %% Generate dataset and dataloaders
+# We use 6 000 training images and 384 test images.
+measurement_dir =  Path(".") / "measurements" / "cs_mnist"
 
 deepinv_datasets_path = dinv.datasets.generate_dataset(
     train_dataset=train_dataset,
     test_dataset=test_dataset,
     physics=physics,
     device=device,
-    save_dir="data/Inpainting_mnist",
+    save_dir=measurement_dir,
     train_datapoints=6_000,
     test_datapoints=384,
     batch_size=500,
     num_workers=num_workers,
-    dataset_filename="dataset",
     overwrite_existing=False,
 )
 
-# deepinv_datasets_path = f"data/Inpainting_div2k//dataset0.h5"
-
 train_dataset = dinv.datasets.HDF5Dataset(path=deepinv_datasets_path, train=True)
 test_dataset = dinv.datasets.HDF5Dataset(path=deepinv_datasets_path, train=False)
-# test_dataset = torch.utils.data.Subset(test_dataset, range(60))
-train_dataloader = DataLoader(train_dataset, batch_size=10, shuffle=False, num_workers=num_workers)
-test_dataloader = DataLoader(test_dataset, batch_size=40, shuffle=False, num_workers=num_workers)
+
+train_dataloader = DataLoader(train_dataset, batch_size=20, shuffle=False, num_workers=num_workers)
+test_dataloader = DataLoader(test_dataset, batch_size=10, shuffle=False, num_workers=num_workers)
 
 
-# %%
-# model = dinv.models.RAM(in_channels=(1, 2, 3), device=device, pretrained=True)
-# model.eval()
+# %% Set up the reconstruction network
+# As a reconstruction network, we use a simple artifact removal network based on a U-Net.
 
-backbone_net = dinv.models.DnCNN(in_channels=1, out_channels=1, depth=20, bias=True, nf=64, padding_mode='zeros', device=device)
-# backbone_net = dinv.models.UNet(in_channels=3, out_channels=3, residual=True, circular_padding=False, cat=True, bias=True, batch_norm=False, scales=4).to(device)
+backbone_net = dinv.models.UNet(in_channels=1, out_channels=1, residual=True, circular_padding=False, cat=True, bias=True, batch_norm=False, scales=4).to(device)
 model = dinv.models.ArtifactRemoval(backbone_net=backbone_net, mode="adjoint", device=device)
+checkpoint = torch.load("/projects/MultivariateDeepSynthesis/phase_retrieval/examples/sampling/25-09-26-09:49:52/ckp_best.pth.tar", weights_only=False, map_location=device)
+model.load_state_dict(checkpoint["state_dict"])
+
+# %% Train and test network
 trainer = dinv.Trainer(
-    epochs=100,
+    epochs=0,
     model=model,
     physics=physics,
     losses=dinv.loss.SupLoss(),
     device=device,
     train_dataloader=train_dataloader,
-    # eval_dataloader=test_dataloader,
-    # eval_interval=15,
-    optimizer=torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-8),
-    save_path="",
-    ckp_interval=50
+    eval_dataloader=test_dataloader,
+    eval_interval=2,
+    optimizer=torch.optim.Adam(model.parameters(), lr=2e-4, weight_decay=1e-8),
+    # save_path="",
+    ckp_interval=2
 
 )
 model = trainer.train()
 
-# %%
+
+# %% Evaluate uncertainty quantification
+# We use the Bootstrap model to generate MC samples, compute the true and estimated MSEs,
+# and plot the empirical coverage of the uncertainty intervals.
+
+
 x,y = next(iter(test_dataloader))
 x = x.to(device)
 y = y.to(device)
-with torch.no_grad():
-    x_net = model(y, physics=physics)
 
 
-# %%
-T = dinv.transform.Reflect() * dinv.transform.Rotate(limits=1.0, multiples=1.0, interpolation_mode=InterpolationMode.BILINEAR) * dinv.transform.Shift(shift_max=0.1)
+T = dinv.transform.Shift(shift_max=2/28)
+
 bootstrap_model = Bootstrap(model=model, img_size=img_size, physics=physics, T=T, MC=100, device=device)
 
-# xhat = bootstrap_model(y, physics)
-# plot([x, x_net, xhat.mean(dim=1), xhat[:,0], xhat[:,2]])
+xhat = bootstrap_model(y, physics)
+x_net = bootstrap_model.get_x_net()
+realized_samples = bootstrap_model.get_realized_samples()
+# plot([x, x_net, xhat.mean(dim=1), realized_samples[:, 1], xhat[:,0], xhat[:,2]])
 uq = UQ(img_size=img_size, dataloader=test_dataloader, model=bootstrap_model)
 true, esti = uq.compute_estimateMSE()
 uq.plot_coverage()
+

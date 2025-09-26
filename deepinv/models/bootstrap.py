@@ -50,7 +50,6 @@ class Bootstrap(Reconstructor):
         self.device = device  
         self.with_inverse = with_inverse
 
-
     def forward(self, y, physics, **kwargs):
         """
         Generate :math:`MC` bootstrap reconstructions from the measurement :math:`y`.

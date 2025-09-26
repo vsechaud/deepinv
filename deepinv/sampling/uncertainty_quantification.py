@@ -86,6 +86,28 @@ class UQ(nn.Module):
 
         return true_mse, estimated_mse
 
+    def get_coverage(self, percentiles):
+        r"""
+        Compute the empirical coverage for given percentiles.
+
+        Parameters
+        ----------
+        percentiles : array-like
+            List of percentiles to compute (between 0 and 100).
+
+        Returns
+        -------
+        np.ndarray
+        Array of shape (len(percentiles),) representing the empirical coverage
+        at each requested percentile.
+        """
+        if not hasattr(self, 'estimated_mse'):
+            _, estimated_mse = self.compute_estimateMSE()
+        else:
+            estimated_mse = self.estimated_mse
+        estimated_percentiles = np.percentile(estimated_mse, percentiles, axis=1).T
+        return estimated_percentiles
+
     def plot_coverage(self):
         r"""
         Plot empirical coverage of uncertainty intervals.
@@ -102,23 +124,22 @@ class UQ(nn.Module):
             Displays a matplotlib figure.
         """
         if not hasattr(self, 'true_mse') or not hasattr(self, 'estimated_mse'):
-            true_mse, estimated_mse = self.compute_estimateMSE()
+            true_mse, _ = self.compute_estimateMSE()
         else:
             true_mse = self.true_mse
-            estimated_mse = self.estimated_mse
         N = len(true_mse)
-        percentiles = np.linspace(0.1, .99, 100)
-        distance = np.sort(estimated_mse, axis=1)
+        percentiles = np.arange(0, 99, 1)
+        estimated_percentiles = self.get_percentiles(percentiles)
         empirical_coverage = np.zeros(len(percentiles))
         for j in range(len(percentiles)):
             success = 0
             for i in range(N):
-                if true_mse[i] < distance[i, int(distance.shape[1] * percentiles[j])]:
+                if true_mse[i] < estimated_percentiles[i, j]:
                     success += 1
 
-            empirical_coverage[j] = success / N
+            empirical_coverage[j] = 100 * success / N
 
-        # empirical_coverage[-1] = 1.
+        empirical_coverage[-1] = 1.  #Because to have a 100% we can just take a ball of infinite radius.
         plt.figure()
         plt.plot(percentiles, empirical_coverage)
         plt.plot(percentiles, percentiles)
