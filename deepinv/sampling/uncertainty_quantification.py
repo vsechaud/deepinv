@@ -84,7 +84,7 @@ class UQ(nn.Module):
                 )
                 .reshape(B, self.MC)
                 .cpu()
-            )  # faux
+            )
 
             true_mse[k : k + x.shape[0]] = true_mse_batch
             estimated_mse[k : k + x.shape[0], :] = estimated_mse_batch
@@ -138,7 +138,7 @@ class UQ(nn.Module):
             true_mse = self.true_mse
         N = len(true_mse)
         percentiles = np.arange(0, 99, 1)
-        estimated_percentiles = self.get_percentiles(percentiles)
+        estimated_percentiles = self.get_coverage(percentiles)
         empirical_coverage = np.zeros(len(percentiles))
         for j in range(len(percentiles)):
             success = 0
