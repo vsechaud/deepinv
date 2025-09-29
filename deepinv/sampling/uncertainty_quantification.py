@@ -70,7 +70,7 @@ class UQ(nn.Module):
         estimated_mse = np.zeros((N, self.MC))
         k = 0
 
-        for x, y in tqdm(self.dataloader, disable=True):
+        for x, y in tqdm(self.dataloader, disable=False):
             x = x.to(self.device)
             y = y.to(self.device)
             x_hat = self.model(y, physics=None)
@@ -138,7 +138,7 @@ class UQ(nn.Module):
             true_mse = self.true_mse
         N = len(true_mse)
         percentiles = np.arange(0, 99, 1)
-        estimated_percentiles = self.get_percentiles(percentiles)
+        estimated_percentiles = self.get_coverage(percentiles)
         empirical_coverage = np.zeros(len(percentiles))
         for j in range(len(percentiles)):
             success = 0
@@ -149,7 +149,7 @@ class UQ(nn.Module):
             empirical_coverage[j] = 100 * success / N
 
         empirical_coverage[-1] = (
-            1.0  # Because to have a 100% we can just take a ball of infinite radius.
+            100  # Because to have a 100% we can just take a ball of infinite radius.
         )
         plt.figure()
         plt.plot(percentiles, empirical_coverage)
