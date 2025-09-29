@@ -11,13 +11,16 @@ from .base import Denoiser
 from torch.nn import Linear, GroupNorm
 from math import floor
 from .utils import get_weights_url
+from typing import Sequence  # noqa: F401
 
 
 class ADMUNet(Denoiser):
     r"""
-    Re-implementation of the architecture from the paper: `Diffusion Models Beat GANs on Image Synthesis <https://arxiv.org/abs/2105.05233>`_.
+    Implementation of the ADM UNet diffusion model.
 
-    The model is also pre-conditioned by the method described in the paper `Elucidating the Design Space of Diffusion-Based Generative Models <https://arxiv.org/pdf/2206.00364>`_.
+    From the paper of :footcite:t:`dhariwal2021diffusion`.
+
+    The model is also pre-conditioned by the method described in the EDM paper :footcite:t:`karras2022elucidating`.
 
     Equivalent to the original implementation by Dhariwal and Nichol, available at: https://github.com/openai/guided-diffusion.
     The architecture consists of a series of convolution layer, down-sampling residual blocks and up-sampling residual blocks with skip-connections.
@@ -30,7 +33,7 @@ class ADMUNet(Denoiser):
     :param int label_dim: Number of class labels, 0 = unconditional.
     :param int augment_dim: Augmentation label dimensionality, 0 = no augmentation.
     :param int model_channels: Base multiplier for the number of channels.
-    :param list[int] channel_mult: Per-resolution multipliers for the number of channels.
+    :param Sequence[int] channel_mult: Per-resolution multipliers for the number of channels.
     :param int channel_mult_emb: Multiplier for the dimensionality of the embedding vector.
     :param int num_blocks: Number of residual blocks per resolution.
     :param list[int] attn_resolutions: List of resolutions with self-attention.
@@ -44,6 +47,8 @@ class ADMUNet(Denoiser):
         See :ref:`pretrained-weights <pretrained-weights>` for more details.
     :param float pixel_std: The standard deviation of the normalized pixels (to `[0, 1]` for example) of the data distribution. Default to `0.75`.
     :param torch.device device: Instruct our module to be either on cpu or on gpu. Default to ``None``, which suggests working on cpu.
+
+
     """
 
     def __init__(
@@ -54,15 +59,15 @@ class ADMUNet(Denoiser):
         label_dim=0,  # Number of class labels, 0 = unconditional.
         augment_dim=0,  # Augmentation label dimensionality, 0 = no augmentation.
         model_channels=192,  # Base multiplier for the number of channels.
-        channel_mult=[
+        channel_mult=(
             1,
             2,
             3,
             4,
-        ],  # Per-resolution multipliers for the number of channels.
+        ),  # Per-resolution multipliers for the number of channels.
         channel_mult_emb=4,  # Multiplier for the dimensionality of the embedding vector.
         num_blocks=3,  # Number of residual blocks per resolution.
-        attn_resolutions=[32, 16, 8],  # List of resolutions with self-attention.
+        attn_resolutions=(32, 16, 8),  # List of resolutions with self-attention.
         dropout=0.10,  # List of resolutions with self-attention.
         label_dropout=0,  # Dropout probability of class labels for classifier-free guidance.
         pretrained: str = "download",

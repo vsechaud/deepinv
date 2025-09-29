@@ -5,6 +5,7 @@ import numpy as np
 import deepinv as dinv
 from deepinv.optim.data_fidelity import L2
 from deepinv.sampling import ULA, SKRock, DiffPIR, DPS, sampling_builder, DDRM
+from deepinv.utils.compat import zip_strict
 
 SAMPLING_ALGOS = ["DDRM", "ULA", "SKRock"]
 
@@ -112,7 +113,7 @@ def test_algo(name_algo, device):
     test_sample = torch.ones((1, 3, 64, 64), device=device)
 
     sigma = 1
-    physics = dinv.physics.Denoising(device=device)
+    physics = dinv.physics.Denoising()
     physics.noise_model = dinv.physics.GaussianNoise(sigma)
     y = physics(test_sample)
 
@@ -307,7 +308,7 @@ def test_sde(device):
         HeunSolver(timesteps=timesteps, rng=rng),
     ]
     sde_classes = [VarianceExplodingDiffusion, VariancePreservingDiffusion]
-    for denoiser, kwargs in zip(denoisers, list_kwargs):
+    for denoiser, kwargs in zip_strict(denoisers, list_kwargs):
         for solver in solvers:
             for sde_class in sde_classes:
                 sde = sde_class(

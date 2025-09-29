@@ -1,5 +1,6 @@
 from .optim_iterator import OptimIterator, fStep, gStep
-from deepinv.optim.bregman import BregmanL2
+from deepinv.optim.bregman import Bregman, BregmanL2
+from typing import Optional
 
 
 class PGDIteration(OptimIterator):
@@ -37,8 +38,7 @@ class FISTAIteration(OptimIterator):
     r"""
     Iterator for fast iterative soft-thresholding (FISTA).
 
-    Class for a single iteration of the FISTA algorithm for minimizing :math:`f(x) + \lambda \regname(x)` as proposed by
-    `Chambolle \& Dossal <https://inria.hal.science/hal-01060130v3/document>`_.
+    Class for a single iteration of the FISTA algorithm for minimizing :math:`f(x) + \lambda \regname(x)` as proposed by :footcite:t:`chambolle2015convergence`.
 
     The iteration is given by
 
@@ -182,7 +182,9 @@ class PMDIteration(OptimIterator):
 
     """
 
-    def __init__(self, bregman_potential=BregmanL2(), **kwargs):
+    def __init__(self, bregman_potential: Optional[Bregman] = None, **kwargs):
+        if bregman_potential is None:
+            bregman_potential = BregmanL2()
         super(PMDIteration, self).__init__(**kwargs)
         self.bregman_potential = bregman_potential
         self.g_step = gStepPGD(**kwargs)

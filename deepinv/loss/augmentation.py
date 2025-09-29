@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union
+from typing import Union, Optional
 
 import torch
 import torch.nn as nn
@@ -12,14 +12,12 @@ from deepinv.physics.mri import MRI
 from deepinv.transform.base import Transform, Identity
 from deepinv.transform.rotate import Rotate
 from deepinv.transform.shift import Shift
-from deepinv.physics.forward import LinearPhysics
 
 
 class AugmentConsistencyLoss(Loss):
     r"""Data augmentation consistency (DAC) loss.
 
-    Performs data augmentation in measurement domain as proposed by
-    `VORTEX: Physics-Driven Data Augmentations Using Consistency Training for Robust Accelerated MRI Reconstruction <https://arxiv.org/abs/2111.02549>`_.
+    Performs data augmentation in measurement domain as proposed by :footcite:t:`desai2021vortex`.
 
     The loss is defined as follows:
 
@@ -46,18 +44,22 @@ class AugmentConsistencyLoss(Loss):
     :param bool no_grad: if ``True``, only propagate gradients through augmented branch as per original paper,
         if ``False``, propagate through both branches.
     :param torch.Generator rng: torch random number generator to pass to transforms.
+
+
     """
 
     def __init__(
         self,
         T_i: Transform = None,
         T_e: Transform = None,
-        metric: Union[Metric, nn.Module] = torch.nn.MSELoss(),
+        metric: Optional[Union[Metric, nn.Module]] = None,
         no_grad: bool = True,
         rng: torch.Generator = None,
         *args,
         **kwargs,
     ):
+        if metric is None:
+            metric = nn.MSELoss()
         super().__init__(*args, **kwargs)
         self.metric = metric
         self.T_i = T_i if T_i is not None else Identity()

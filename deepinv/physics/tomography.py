@@ -1,23 +1,24 @@
 from typing import Any, Union, Optional
+from types import MappingProxyType
+from warnings import warn
 import math
+
+from numpy import ndarray
 import torch
-from deepinv.physics.forward import LinearPhysics
 
-from deepinv.physics.functional import Radon, IRadon, RampFilter, ApplyRadon
-from deepinv.physics import adjoint_function
-
-from deepinv.physics.functional import XrayTransform
+from deepinv.physics.forward import LinearPhysics, adjoint_function
+from deepinv.physics.functional import (
+    Radon,
+    IRadon,
+    RampFilter,
+    ApplyRadon,
+    XrayTransform,
+)
 from deepinv.physics.functional.astra import (
     AutogradTransform,
     create_projection_geometry,
     create_object_geometry,
 )
-from warnings import warn
-
-try:
-    import astra
-except:
-    astra = ImportError("The astra-toolbox package is not installed.")
 
 
 class Tomography(LinearPhysics):
@@ -70,7 +71,7 @@ class Tomography(LinearPhysics):
 
         - "detector_spacing" distance between two pixels on the detector, default: 0.077
 
-        The default values are adapted from the geometry in `https://doi.org/10.5281/zenodo.8307932 <https://doi.org/10.5281/zenodo.8307932>`_,
+        The default values are adapted from the geometry in :footcite:t:`khalil2023hyperspectral`.
         where pixel spacing, source and detector radius and detector spacing are given in cm.
         Note that a to small value of n_detector_pixels*detector_spacing can lead to severe circular artifacts in any reconstruction.
     :param str device: gpu or cpu.
@@ -105,6 +106,9 @@ class Tomography(LinearPhysics):
                   [ 0.0000, -0.0452,  0.0989]]]])
 
 
+    .. note::
+
+        This class requires the ``astra-toolbox`` package to be installed. Install with ``pip install astra-toolbox``.
     """
 
     def __init__(
@@ -128,13 +132,22 @@ class Tomography(LinearPhysics):
             theta = torch.linspace(0, 180, steps=angles + 1, device=device)[:-1].to(
                 device
             )
-        else:
+        elif isinstance(angles, (list, tuple, ndarray)):
             theta = torch.tensor(angles).to(device)
+        elif isinstance(angles, torch.Tensor):
+            theta = angles
+        else:
+            raise ValueError(
+                f"angles must be int, float, iterable or Tensor, but got {type(angles)}"
+            )
 
         self.register_buffer("theta", theta)
 
         self.fan_beam = fan_beam
         self.adjoint_via_backprop = adjoint_via_backprop
+        if fan_beam or adjoint_via_backprop:
+            self._auto_grad_adjoint_fn = None
+            self._auto_grad_adjoint_input_shape = (1, 1, img_width, img_width)
         self.fbp_interpolate_boundary = fbp_interpolate_boundary
         if circle:
             # interpolate boundary does not make sense if circle is True
@@ -236,13 +249,25 @@ class Tomography(LinearPhysics):
                     "Image size unknown. Apply forward operator or add it for initialization."
                 )
             # lazy implementation for the adjoint...
-            adj = adjoint_function(
-                self.A,
-                (y.shape[0], y.shape[1], self.img_width, self.img_width),
-                device=self.device,
-                dtype=self.dtype,
-            )
-            return adj(y)
+            if (
+                self._auto_grad_adjoint_fn is None
+                or self._auto_grad_adjoint_input_shape
+                != (y.size(0), y.size(1), self.img_width, self.img_width)
+            ):
+                self._auto_grad_adjoint_fn = adjoint_function(
+                    self.A,
+                    (y.shape[0], y.shape[1], self.img_width, self.img_width),
+                    device=self.device,
+                    dtype=self.dtype,
+                )
+                self._auto_grad_adjoint_input_shape = (
+                    y.size(0),
+                    y.size(1),
+                    self.img_width,
+                    self.img_width,
+                )
+
+            return self._auto_grad_adjoint_fn(y)
         else:
             output = ApplyRadon.apply(y, self.radon, self.iradon, True)
             if self.normalize:
@@ -423,16 +448,21 @@ class TomographyWithAstra(LinearPhysics):
         bounding_box: Optional[tuple[float, ...]] = None,
         angles: Optional[torch.Tensor] = None,
         geometry_type: str = "parallel",
-        geometry_parameters: dict[str, Any] = {
-            "source_radius": 80.0,
-            "detector_radius": 20.0,
-        },
+        geometry_parameters: dict[str, Any] = MappingProxyType(
+            {
+                "source_radius": 80.0,
+                "detector_radius": 20.0,
+            }
+        ),
         geometry_vectors: Optional[torch.Tensor] = None,
         normalize: bool = False,
         device: Union[torch.device, str] = torch.device("cuda"),
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        if isinstance(geometry_parameters, MappingProxyType):
+            geometry_parameters = geometry_parameters.copy()
 
         assert len(img_size) in (
             2,
@@ -516,6 +546,11 @@ class TomographyWithAstra(LinearPhysics):
         :param torch.Tensor sinogram: Sinogram of shape [B,C,...,A,N].
         :return: Weighted sinogram.
         """
+        import astra
+
+        # NOTE: This import is used by its side effects.
+        from astra import experimental  # noqa: F401
+
         sinogram_scaled = torch.clone(sinogram)
         is_3d = len(sinogram.shape) == 5
 
