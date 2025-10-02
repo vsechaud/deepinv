@@ -1,4 +1,4 @@
-from typing import Union
+from __future__ import annotations
 
 import torch
 from deepinv.loss.loss import Loss
@@ -26,6 +26,8 @@ class MCLoss(Loss):
     """
 
     def __init__(self, metric: Union[Metric, torch.nn.Module, None] = None, normalize: bool = False):
+        if metric is None:
+            metric = torch.nn.MSELoss()
         super(MCLoss, self).__init__()
         self.name = "mc"
         self.metric = metric
