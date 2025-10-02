@@ -47,6 +47,7 @@ class Bootstrap(Reconstructor):
         MC=100,
         device="cpu",
         with_inverse=True,
+        split = False
     ):
         super(Bootstrap, self).__init__()
         self.model = model
@@ -59,6 +60,7 @@ class Bootstrap(Reconstructor):
         self.physics = physics
         self.device = device
         self.with_inverse = with_inverse
+        self.split = split
 
     def forward(self, y, physics, **kwargs):
         """
@@ -75,16 +77,22 @@ class Bootstrap(Reconstructor):
             x_net = self.model(y, self.physics)
             self.x_net = x_net.clone()
             for k in range(self.MC):
-                params = self.T.get_params(x_net)
-                realized_samples.append(self.T(x_net, **params))
-                bootstrap_measurements = self.physics(realized_samples[k])
+                if self.split:
+                    bootstrap_measurements = y.clone()
+                else:
+                    params = self.T.get_params(x_net)
+                    realized_samples.append(self.T(x_net, **params))
+                    bootstrap_measurements = self.physics(realized_samples[k])
                 samples.append(self.model(bootstrap_measurements, self.physics))
                 if self.with_inverse:
                     samples[k] = self.T.inverse(samples[k], batchwise=False, **params)
         samples = torch.stack(samples, dim=1).reshape(-1, self.MC, *self.img_size)
-        self.realized_samples = torch.stack(realized_samples, dim=1).reshape(
-            -1, self.MC, *self.img_size
-        )
+        if not self.split:
+            self.realized_samples = torch.stack(realized_samples, dim=1).reshape(
+                -1, self.MC, *self.img_size
+            )
+        if self.split:
+            self.x_net = samples.mean(dim=1)
 
         return samples
 
